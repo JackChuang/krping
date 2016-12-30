@@ -654,7 +654,8 @@ static int krping_setup_qp(struct krping_cb *cb, struct rdma_cm_id *cm_id)
 	int ret;
 	struct ib_cq_init_attr attr = {0};
 
-	cb->pd = ib_alloc_pd(cm_id->device, 0);
+	//cb->pd = ib_alloc_pd(cm_id->device, 0);
+	cb->pd = ib_alloc_pd(cm_id->device);
 	if (IS_ERR(cb->pd)) {
 		printk(KERN_ERR PFX "ib_alloc_pd failed\n");
 		return PTR_ERR(cb->pd);
@@ -724,7 +725,8 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	sg_dma_address(&sg) = buf;
 	sg_dma_len(&sg) = cb->size;
 
-	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
+	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
+	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);
 	BUG_ON(ret <= 0 || ret > cb->page_list_len);
 
 	DEBUG_LOG(PFX "post_inv = %d, reg_mr new rkey 0x%x pgsz %u len %u"
@@ -1356,17 +1358,24 @@ static void krping_bw_test_server(struct krping_cb *cb)
 
 static int reg_supported(struct ib_device *dev)
 {
+    /*
 	u64 needed_flags = IB_DEVICE_MEM_MGT_EXTENSIONS |
 			   IB_DEVICE_LOCAL_DMA_LKEY;
 
 	if ((dev->attrs.device_cap_flags & needed_flags) != needed_flags) {
+	//if ((dev->ib_device_attr.device_cap_flags & needed_flags) != needed_flags) {
 		printk(KERN_ERR PFX 
 			"Fastreg not supported - device_cap_flags 0x%llx\n",
 			(u64)dev->attrs.device_cap_flags);
+			//(u64)dev->ib_device_attr.device_cap_flags);
 		return 0;
 	}
+	//DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags 0x%llx\n",
 	DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags 0x%llx\n",
 		(u64)dev->attrs.device_cap_flags);
+		//(u64)dev->ib_device_attr.device_cap_flags);
+    */
+	DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags ??? (Jack: skip this check)\n");
 	return 1;
 }
 
@@ -1416,7 +1425,7 @@ static int krping_bind_server(struct krping_cb *cb)
 		return -1;
 	}
 
-	if (!reg_supported(cb->child_cm_id->device))
+	if (!reg_supported(cb->child_cm_id->device)) //Jack
 		return -EINVAL;
 
 	return 0;
@@ -1784,7 +1793,8 @@ static void krping_fr_test(struct krping_cb *cb)
 
 	sg_dma_address(&sg) = 0xcafebabe0000UL;
 	sg_dma_len(&sg) = size;
-	ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE);
+	//ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE);
+	ret = ib_map_mr_sg(mr, &sg, 1, PAGE_SIZE);
 	if (ret <= 0) {
 		printk(KERN_ERR PFX "ib_map_mr_sge err %d\n", ret);
 		goto err2;
@@ -1823,7 +1833,8 @@ static void krping_fr_test(struct krping_cb *cb)
 			if (size == 0)
 				size = cb->size;
 			sg_dma_len(&sg) = size;
-			ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE);
+			//ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE);
+			ret = ib_map_mr_sg(mr, &sg, 1, PAGE_SIZE);
 			if (ret <= 0) {
 				printk(KERN_ERR PFX "ib_map_mr_sge err %d\n", ret);
 				goto err2;
@@ -1903,7 +1914,7 @@ static int krping_bind_client(struct krping_cb *cb)
 		return -EINTR;
 	}
 
-	if (!reg_supported(cb->cm_id->device))
+	if (!reg_supported(cb->cm_id->device)) //Jack
 		return -EINVAL;
 
 	DEBUG_LOG("rdma_resolve_addr - rdma_resolve_route successful\n");
