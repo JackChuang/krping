@@ -368,9 +368,13 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 		printk(KERN_ERR PFX "cq completion event in frtest!\n");
 		return;
 	}
-	if (!cb->wlat && !cb->rlat && !cb->bw)
+	if (!cb->wlat && !cb->rlat && !cb->bw) {
+	    DEBUG_LOG("before ib_req_notify_cq()\n");
 		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
-	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) {
+	    DEBUG_LOG("\n\n\n\n\n"); msleep(5000);
+	    DEBUG_LOG("after ib_req_notify_cq();\n");
+    }
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
 		if (wc.status) {
 			if (wc.status == IB_WC_WR_FLUSH_ERR) {
 				DEBUG_LOG("cq flushed\n");
@@ -1518,17 +1522,22 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		cb->start_buf[cb->size - 1] = 0;
 
-		krping_format_send(cb, cb->start_dma_addr); // fail
+	    DEBUG_LOG("\n\n\n\n\n"); msleep(5000);
+		krping_format_send(cb, cb->start_dma_addr);
 		if (cb->state == ERROR) {
 			printk(KERN_ERR PFX "krping_format_send failed\n");
 			break;
 		}
+	    DEBUG_LOG("\n\n\n\n\n"); msleep(5000);
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
-
+       
+	    DEBUG_LOG("\n\n\n\n\n");
+	    DEBUG_LOG("blocking wait......\n");
+        msleep(5000);
 		/* Wait for server to ACK */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_WRITE_ADV);
 		if (cb->state != RDMA_WRITE_ADV) {
