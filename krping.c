@@ -357,6 +357,8 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
+	DEBUG_LOG("->%s();\n", __func__);
+
 	BUG_ON(cb->cq != cq);
 	if (cb->state == ERROR) {
 		printk(KERN_ERR PFX "cq completion in ERROR state\n");
@@ -448,6 +450,7 @@ static int krping_accept(struct krping_cb *cb)
 {
 	struct rdma_conn_param conn_param;
 	int ret;
+	DEBUG_LOG("->%s();\n", __func__);
 
 	DEBUG_LOG("accepting client connection request\n");
 
@@ -511,6 +514,7 @@ static void krping_setup_wr(struct krping_cb *cb)
 static int krping_setup_buffers(struct krping_cb *cb)
 {
 	int ret;
+	DEBUG_LOG("->%s();\n", __func__);
 
 	DEBUG_LOG(PFX "krping_setup_buffers called on cb %p\n", cb);
 
@@ -653,6 +657,8 @@ static int krping_setup_qp(struct krping_cb *cb, struct rdma_cm_id *cm_id)
 {
 	int ret;
 	struct ib_cq_init_attr attr = {0};
+	
+    DEBUG_LOG("->%s();\n", __func__);
 
 	//cb->pd = ib_alloc_pd(cm_id->device, 0);
 	cb->pd = ib_alloc_pd(cm_id->device);
@@ -1512,7 +1518,7 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		cb->start_buf[cb->size - 1] = 0;
 
-		krping_format_send(cb, cb->start_dma_addr);
+		krping_format_send(cb, cb->start_dma_addr); // fail
 		if (cb->state == ERROR) {
 			printk(KERN_ERR PFX "krping_format_send failed\n");
 			break;
@@ -1879,6 +1885,8 @@ static int krping_connect_client(struct krping_cb *cb)
 {
 	struct rdma_conn_param conn_param;
 	int ret;
+	
+    DEBUG_LOG("->%s();\n", __func__);
 
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 1;
@@ -1961,6 +1969,7 @@ static void krping_run_client(struct krping_cb *cb)
 		printk(KERN_ERR PFX "connect error %d\n", ret);
 		goto err2;
 	}
+
 
 	if (cb->wlat) {
 		DEBUG_LOG("TEST client: krping_wlat_test_client()\n");
