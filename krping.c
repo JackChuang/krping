@@ -428,6 +428,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 				goto error;
 			}
 
+	        DEBUG_LOG("ib_post_recv<<<<\n");
 			ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
 			if (ret) {
 				printk(KERN_ERR PFX "post recv error: %d\n", 
@@ -753,6 +754,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		cb->reg_mr->length,
 		cb->reg_mr->iova);
 
+	DEBUG_LOG("ib_post_send>>>>\n");
 	if (post_inv)
 		ret = ib_post_send(cb->qp, &cb->invalidate_wr, &bad_wr);
 	else
@@ -824,6 +826,7 @@ static void krping_test_server(struct krping_cb *cb)
 			inv.send_flags = IB_SEND_FENCE;
 		}
 
+	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -855,6 +858,7 @@ static void krping_test_server(struct krping_cb *cb)
 			cb->sq_wr.opcode = IB_WR_SEND_WITH_INV;
 			DEBUG_LOG("send-w-inv rkey 0x%x\n", cb->remote_rkey);
 		} 
+	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -887,6 +891,7 @@ static void krping_test_server(struct krping_cb *cb)
 			  (unsigned long long)cb->rdma_sq_wr.wr.sg_list->addr,
 			  cb->rdma_sq_wr.wr.sg_list->length);
 
+	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -912,6 +917,7 @@ static void krping_test_server(struct krping_cb *cb)
 			cb->sq_wr.opcode = IB_WR_SEND_WITH_INV;
 			DEBUG_LOG("send-w-inv rkey 0x%x\n", cb->remote_rkey);
 		} 
+	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -1468,6 +1474,7 @@ static void krping_run_server(struct krping_cb *cb)
 		goto err1;
 	}
 
+	DEBUG_LOG("ib_post_recv<<<<\n");
 	ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
 	if (ret) {
 		printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
@@ -1536,6 +1543,7 @@ static void krping_test_client(struct krping_cb *cb)
 			break;
 		}
 	    DEBUG_LOG("\n\n\n"); msleep(5000);
+	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -1556,6 +1564,7 @@ static void krping_test_client(struct krping_cb *cb)
 		}
 
 		krping_format_send(cb, cb->rdma_dma_addr);
+	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -1975,6 +1984,7 @@ static void krping_run_client(struct krping_cb *cb)
 		goto err1;
 	}
 
+	DEBUG_LOG("ib_post_recv<<<<\n");
 	ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
 	if (ret) {
 		printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
