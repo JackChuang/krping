@@ -124,13 +124,13 @@ static struct proc_dir_entry *krping_proc;
  *
  * krping "ping/pong" loop:
  * 	client sends source rkey/addr/len
- *	server receives source rkey/add/len
- *	server rdma reads "ping" data from source
- * 	server sends "go ahead" on rdma read completion
+ *	    server receives source rkey/add/len
+ *	    server rdma reads "ping" data from source
+ * 	    server sends "go ahead" on rdma read completion
  *	client sends sink rkey/addr/len
- * 	server receives sink rkey/addr/len
- * 	server rdma writes "pong" data to sink
- * 	server sends "go ahead" on rdma write completion
+ * 	    server receives sink rkey/addr/len
+ * 	    server rdma writes "pong" data to sink
+ * 	    server sends "go ahead" on rdma write completion
  * 	<repeat loop>
  */
 
@@ -247,6 +247,7 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 {
 	int ret;
 	struct krping_cb *cb = cma_id->context;
+    DEBUG_LOG("external------>%s();\n", __func__);
 
 	DEBUG_LOG("cma_event type %d cma_id %p (%s)\n", event->event, cma_id,
 		  (cma_id == cb->cm_id) ? "parent" : "child");
@@ -276,10 +277,12 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 
 	case RDMA_CM_EVENT_ESTABLISHED:
 		DEBUG_LOG("ESTABLISHED\n");
-		if (!cb->server) {
+		//if (!cb->server) { // Jack
 			cb->state = CONNECTED;
-		}
-		wake_up_interruptible(&cb->sem);
+		//}
+        DEBUG_LOG("%s(): cb->state=%d, CONNECTED=%d\n", __func__, cb->state, CONNECTED);
+		wake_up(&cb->sem);
+		//wake_up_interruptible(&cb->sem);
 		break;
 
 	case RDMA_CM_EVENT_ADDR_ERROR:
@@ -294,6 +297,7 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 		break;
 
 	case RDMA_CM_EVENT_DISCONNECTED:
+        DEBUG_LOG("%s(): cb->state=%d, CONNECTED=%d\n", __func__, cb->state, CONNECTED);
 		printk(KERN_ERR PFX "DISCONNECT EVENT...\n");
 		cb->state = ERROR;
 		wake_up_interruptible(&cb->sem);
@@ -357,7 +361,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
-	DEBUG_LOG("->%s();\n", __func__);
+	DEBUG_LOG("external------>%s();\n", __func__);
 
 	BUG_ON(cb->cq != cq);
 	if (cb->state == ERROR) {
@@ -371,7 +375,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 	if (!cb->wlat && !cb->rlat && !cb->bw) {
 	    DEBUG_LOG("before ib_req_notify_cq()\n");
 		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
-	    DEBUG_LOG("\n\n\n\n\n"); msleep(5000);
+	    DEBUG_LOG("\n\n\n\n\n");
 	    DEBUG_LOG("after ib_req_notify_cq();\n");
     }
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
@@ -467,9 +471,11 @@ static int krping_accept(struct krping_cb *cb)
 		return ret;
 	}
 
-    DEBUG_LOG("%s(): wating for a signal......\n", __func__);
 	if (!cb->wlat && !cb->rlat && !cb->bw) {
-		wait_event_interruptible(cb->sem, cb->state >= CONNECTED);
+        DEBUG_LOG("%s(): wating for a signal......\n", __func__);
+        //wait_event_interruptible(cb->sem, cb->state >= CONNECTED);
+		wait_event(cb->sem, cb->state >= CONNECTED);
+        DEBUG_LOG("%s(): got the signal !!!! cb->state=%d\n", __func__, cb->state);
 		if (cb->state == ERROR) {
 			printk(KERN_ERR PFX "wait for CONNECTED state %d\n", 
 				cb->state);
@@ -1468,6 +1474,7 @@ static void krping_run_server(struct krping_cb *cb)
 		goto err2;
 	}
 
+    msleep(3000);
 	ret = krping_accept(cb);
 	if (ret) {
 		printk(KERN_ERR PFX "connect error %d\n", ret);
