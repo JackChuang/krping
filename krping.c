@@ -247,7 +247,7 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 {
 	int ret;
 	struct krping_cb *cb = cma_id->context;
-    DEBUG_LOG("external------>%s();\n", __func__);
+    DEBUG_LOG("external>>>>>>%s();\n", __func__);
 
 	DEBUG_LOG("cma_event type %d cma_id %p (%s)\n", event->event, cma_id,
 		  (cma_id == cb->cm_id) ? "parent" : "child");
@@ -361,7 +361,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
-	DEBUG_LOG("external------>%s();\n", __func__);
+	DEBUG_LOG("\nexternal------>%s();\n", __func__);
 
 	BUG_ON(cb->cq != cq);
 	if (cb->state == ERROR) {
@@ -482,7 +482,8 @@ static int krping_accept(struct krping_cb *cb)
 				cb->state);
 			return -1;
 		}
-	}
+	}	
+    DEBUG_LOG("\n");
 	return 0;
 }
 
@@ -578,6 +579,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
 	krping_setup_wr(cb);
 	DEBUG_LOG(PFX "allocated & registered buffers...\n");
+	DEBUG_LOG("\n");
 	return 0;
 bail:
 	if (cb->reg_mr && !IS_ERR(cb->reg_mr))
@@ -1481,7 +1483,6 @@ static void krping_run_server(struct krping_cb *cb)
 		goto err2;
 	}
 
-    msleep(3000);
 	ret = krping_accept(cb);
 	if (ret) {
 		printk(KERN_ERR PFX "connect error %d\n", ret);
