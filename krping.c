@@ -373,10 +373,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 		return;
 	}
 	if (!cb->wlat && !cb->rlat && !cb->bw) {
-	    DEBUG_LOG("before ib_req_notify_cq()\n");
 		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
-	    DEBUG_LOG("\n\n\n\n\n");
-	    DEBUG_LOG("after ib_req_notify_cq();\n");
     }
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
 		if (wc.status) {
@@ -792,12 +789,22 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 static void krping_test_server(struct krping_cb *cb)
 {
 	struct ib_send_wr *bad_wr, inv;
+    struct ib_recv_wr *bad_wr2;
 	int ret;
 
 	while (1) {
+	    // Jack
+        DEBUG_LOG("ib_post_recv<<<<\n");
+	    ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr2);
+	    if (ret) {
+		    printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
+		    break;
+	    }
+
 		/* Wait for client's Start STAG/TO/Len */
-		wait_event_interruptible(cb->sem, cb->state >= RDMA_READ_ADV);
-		if (cb->state != RDMA_READ_ADV) {
+		//wait_event_interruptible(cb->sem, cb->state >= RDMA_READ_ADV);
+		wait_event(cb->sem, cb->state >= RDMA_READ_ADV);
+        if (cb->state != RDMA_READ_ADV) {
 			printk(KERN_ERR PFX "wait for RDMA_READ_ADV state %d\n",
 				cb->state);
 			break;
@@ -1502,7 +1509,7 @@ static void krping_run_server(struct krping_cb *cb)
 		krping_bw_test_server(cb);
     }
 	else {
-        DEBUG_LOG("TEST server: krping_test_server()\n");
+        DEBUG_LOG("\n\n\n\n\n\n\nTEST server: krping_test_server()\n");
 		krping_test_server(cb);
     }
 	rdma_disconnect(cb->child_cm_id);
@@ -1522,7 +1529,7 @@ static void krping_test_client(struct krping_cb *cb)
 
 	start = 65;
 	for (ping = 0; !cb->count || ping < cb->count; ping++) {
-		cb->state = RDMA_READ_ADV;
+		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
 
 		/* Put some ascii text in the buffer. */
 		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping);
@@ -1561,9 +1568,10 @@ static void krping_test_client(struct krping_cb *cb)
 			printk(KERN_ERR PFX 
 			       "wait for RDMA_WRITE_ADV state %d\n",
 			       cb->state);
-			break;
+			break;  // break
 		}
 
+        DEBUG_LOG("\n\n\n"); msleep(5000);
 		krping_format_send(cb, cb->rdma_dma_addr);
 	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
@@ -2016,7 +2024,7 @@ static void krping_run_client(struct krping_cb *cb)
 		krping_fr_test(cb);
     }
 	else {
-		DEBUG_LOG("TEST client: krping_test_client()\n");
+		DEBUG_LOG("\n\n\n\n\nTEST client: krping_test_client()\n");
 		krping_test_client(cb);
     }
 	rdma_disconnect(cb->cm_id);
