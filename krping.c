@@ -59,7 +59,7 @@
 
 #define PFX "krping: "
 
-static int debug = 0;
+static int debug = 1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 #define DEBUG_LOG if (debug) printk
@@ -1464,14 +1464,22 @@ static void krping_run_server(struct krping_cb *cb)
 		goto err2;
 	}
 
-	if (cb->wlat)
+	if (cb->wlat) {
 		krping_wlat_test_server(cb);
-	else if (cb->rlat)
+        DEBUG_LOG("TEST server: krping_wlat_test_server()\n");
+    }
+	else if (cb->rlat) {
 		krping_rlat_test_server(cb);
-	else if (cb->bw)
+        DEBUG_LOG("TEST server: krping_rlat_test_server()\n");
+    }
+	else if (cb->bw) {
 		krping_bw_test_server(cb);
-	else
+        DEBUG_LOG("TEST server: krping_bw_test_server()\n");
+    }
+	else {
 		krping_test_server(cb);
+        DEBUG_LOG("TEST server: krping_test_server()\n");
+    }
 	rdma_disconnect(cb->child_cm_id);
 err2:
 	krping_free_buffers(cb);
@@ -1954,16 +1962,26 @@ static void krping_run_client(struct krping_cb *cb)
 		goto err2;
 	}
 
-	if (cb->wlat)
+	if (cb->wlat) {
 		krping_wlat_test_client(cb);
-	else if (cb->rlat)
+		DEBUG_LOG("TEST client: krping_wlat_test_client()\n");
+    }
+	else if (cb->rlat) {
 		krping_rlat_test_client(cb);
-	else if (cb->bw)
+		DEBUG_LOG("TEST client: krping_rlat_test_client()\n");
+    }
+	else if (cb->bw) {
 		krping_bw_test_client(cb);
-	else if (cb->frtest)
+		DEBUG_LOG("TEST client: krping_bw_test_client()\n");
+    }
+	else if (cb->frtest) {
 		krping_fr_test(cb);
-	else
+		DEBUG_LOG("TEST client: krping_fr_test()\n");
+    }
+	else {
 		krping_test_client(cb);
+		DEBUG_LOG("TEST client: krping_test_client()\n");
+    }
 	rdma_disconnect(cb->cm_id);
 err2:
 	krping_free_buffers(cb);
