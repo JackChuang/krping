@@ -369,8 +369,8 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 		return;
 	}
 	if (!cb->wlat && !cb->rlat && !cb->bw)
-		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
-	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) {
+		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP); //fail
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
 		if (wc.status) {
 			if (wc.status == IB_WC_WR_FLUSH_ERR) {
 				DEBUG_LOG("cq flushed\n");
@@ -451,8 +451,7 @@ static int krping_accept(struct krping_cb *cb)
 	struct rdma_conn_param conn_param;
 	int ret;
 	DEBUG_LOG("->%s();\n", __func__);
-
-	DEBUG_LOG("accepting client connection request\n");
+	DEBUG_LOG("\taccepting client connection request......\n");
 
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 1;
@@ -464,6 +463,7 @@ static int krping_accept(struct krping_cb *cb)
 		return ret;
 	}
 
+    DEBUG_LOG("%s(): wating for a signal......\n", __func__);
 	if (!cb->wlat && !cb->rlat && !cb->bw) {
 		wait_event_interruptible(cb->sem, cb->state >= CONNECTED);
 		if (cb->state == ERROR) {
@@ -1518,7 +1518,7 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		cb->start_buf[cb->size - 1] = 0;
 
-		krping_format_send(cb, cb->start_dma_addr); // fail
+		krping_format_send(cb, cb->start_dma_addr);
 		if (cb->state == ERROR) {
 			printk(KERN_ERR PFX "krping_format_send failed\n");
 			break;
