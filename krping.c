@@ -455,8 +455,7 @@ static int krping_accept(struct krping_cb *cb)
 	struct rdma_conn_param conn_param;
 	int ret;
 	DEBUG_LOG("->%s();\n", __func__);
-
-	DEBUG_LOG("accepting client connection request\n");
+	DEBUG_LOG("\taccepting client connection request......\n");
 
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 1;
@@ -468,6 +467,7 @@ static int krping_accept(struct krping_cb *cb)
 		return ret;
 	}
 
+    DEBUG_LOG("%s(): wating for a signal......\n", __func__);
 	if (!cb->wlat && !cb->rlat && !cb->bw) {
 		wait_event_interruptible(cb->sem, cb->state >= CONNECTED);
 		if (cb->state == ERROR) {
