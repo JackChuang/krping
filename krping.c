@@ -1529,22 +1529,23 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		cb->start_buf[cb->size - 1] = 0;
 
-	    DEBUG_LOG("\n\n\n\n\n"); msleep(5000);
+	    DEBUG_LOG("\n\n\n"); msleep(5000);
 		krping_format_send(cb, cb->start_dma_addr);
 		if (cb->state == ERROR) {
 			printk(KERN_ERR PFX "krping_format_send failed\n");
 			break;
 		}
-	    DEBUG_LOG("\n\n\n\n\n"); msleep(5000);
+	    DEBUG_LOG("\n\n\n"); msleep(5000);
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
        
-	    DEBUG_LOG("\n\n\n\n\n");
+	    DEBUG_LOG("\n\n\n");
 	    DEBUG_LOG("blocking wait......\n");
         msleep(5000);
+	    DEBUG_LOG("\n\n\n");
 		/* Wait for server to ACK */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_WRITE_ADV);
 		if (cb->state != RDMA_WRITE_ADV) {
