@@ -377,7 +377,16 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
     }
 	//while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) > 0) { //fail
-        printk("wc.status==%d, IBV_WC_SUCCESS==%d @@@@@@@@ \n", wc.status,IBV_WC_SUCCESS);
+        /**
+         * IBV_WC_LOC_PROT_ERR (4) - 
+         * This event is generated when a user attempts to access an address outside of the registered memory
+         * region. For example, this may happen if the Lkey does not match the address in the WR.
+         * 
+         * IBV_WC_LOC_PROT_ERR (4) - Local Protection Error: the locally posted Work Request’s buffers in the 
+         * scatter/gather list does not reference a Memory Region that is valid for the requested operation.
+         * 
+         * 
+         **/
 		if (wc.status) { // !=IBV_WC_SUCCESS
 			if (wc.status == IB_WC_WR_FLUSH_ERR) {
 				DEBUG_LOG("cq flushed\n");
