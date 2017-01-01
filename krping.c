@@ -377,8 +377,8 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
     }
 	//while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) > 0) { //fail
-        printk("wc.status==%d @@@@@@@@@@ \n", wc.status);
-		if (wc.status) {
+        printk("wc.status==%d, IBV_WC_SUCCESS==%d @@@@@@@@ \n", wc.status,IBV_WC_SUCCESS);
+		if (wc.status) { // !=IBV_WC_SUCCESS
 			if (wc.status == IB_WC_WR_FLUSH_ERR) {
 				DEBUG_LOG("cq flushed\n");
 				continue;
