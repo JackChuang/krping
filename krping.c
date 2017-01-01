@@ -375,7 +375,9 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 	if (!cb->wlat && !cb->rlat && !cb->bw) {
 		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
     }
-	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
+	//while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) { //fail
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) > 0) { //fail
+        printk("wc.status==%d @@@@@@@@@@ \n", wc.status);
 		if (wc.status) {
 			if (wc.status == IB_WC_WR_FLUSH_ERR) {
 				DEBUG_LOG("cq flushed\n");
@@ -789,21 +791,21 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 static void krping_test_server(struct krping_cb *cb)
 {
 	struct ib_send_wr *bad_wr, inv;
-    struct ib_recv_wr *bad_wr2;
+    //struct ib_recv_wr *bad_wr2;
 	int ret;
 
 	while (1) {
 	    // Jack
-        DEBUG_LOG("ib_post_recv<<<<\n");
-	    ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr2);
-	    if (ret) {
-		    printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
-		    break;
-	    }
+        //DEBUG_LOG("ib_post_recv<<<<\n");
+	    //ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr2);
+	    //if (ret) {
+		//    printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
+		//    break;
+	    //}
 
 		/* Wait for client's Start STAG/TO/Len */
-		//wait_event_interruptible(cb->sem, cb->state >= RDMA_READ_ADV);
-		wait_event(cb->sem, cb->state >= RDMA_READ_ADV);
+		wait_event_interruptible(cb->sem, cb->state >= RDMA_READ_ADV);
+		//wait_event(cb->sem, cb->state >= RDMA_READ_ADV);
         if (cb->state != RDMA_READ_ADV) {
 			printk(KERN_ERR PFX "wait for RDMA_READ_ADV state %d\n",
 				cb->state);
