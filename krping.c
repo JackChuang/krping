@@ -582,12 +582,13 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		cb->start_dma_addr = dma_map_single(cb->pd->device->dma_device, 
 						   cb->start_buf, cb->size, 
 						   DMA_BIDIRECTIONAL);
+	    DEBUG_LOG("cb->start_dma_addr = 0x%llx Jack\n", cb->start_dma_addr);
 		pci_unmap_addr_set(cb, start_mapping, cb->start_dma_addr);
 	}
 
 	krping_setup_wr(cb);
 	DEBUG_LOG(PFX "allocated & registered buffers...\n");
-	DEBUG_LOG("\n");
+	DEBUG_LOG("\n\n");
 	return 0;
 bail:
 	if (cb->reg_mr && !IS_ERR(cb->reg_mr))
@@ -1418,7 +1419,8 @@ static int reg_supported(struct ib_device *dev)
 		printk(KERN_ERR PFX 
 			"Fastreg not supported - device_cap_flags 0x%llx\n",
 			(u64)device_attr.device_cap_flags);
-		return 0;
+        //return 0;
+		return 1;
 	}
 	DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags 0x%llx\n",
 		(u64)device_attr.device_cap_flags);
