@@ -500,8 +500,6 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->recv_sgl.addr = cb->recv_dma_addr;
 	cb->recv_sgl.length = sizeof cb->recv_buf;
 	//cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; //Jack
-	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
-	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
 	cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
@@ -509,14 +507,11 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->send_sgl.length = sizeof cb->send_buf;
 	//cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //Jack
     
+    cb->reg_mr->lkey = cb->qp->device->local_dma_lkey; // Jack                                                                
     
-
-	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
-	DEBUG_LOG("@@@ cb->send_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
-    
-    //
-    cb->reg_mr->lkey = cb->qp->device->local_dma_lkey; // Jack
-
+    DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
+    DEBUG_LOG("@@@ cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
+    DEBUG_LOG("@@@ cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
 
 	cb->sq_wr.opcode = IB_WR_SEND;
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
@@ -535,7 +530,7 @@ static void krping_setup_wr(struct krping_cb *cb)
 	 * both unsignaled.  The client uses them to reregister
 	 * the rdma buffers with a new key each iteration.
 	 */
-	cb->reg_mr_wr.wr.opcode = IB_WR_REG_MR;
+	cb->reg_mr_wr.wr.opcode = IB_WR_REG_MR;     //(legacy:fastreg)
 	cb->reg_mr_wr.mr = cb->reg_mr;
 
 	cb->invalidate_wr.next = &cb->reg_mr_wr.wr;
@@ -549,16 +544,16 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
 	DEBUG_LOG(PFX "krping_setup_buffers called on cb %p\n", cb);
 
-	cb->recv_dma_addr = dma_map_single(cb->pd->device->dma_device, 
-				   &cb->recv_buf, 
+	cb->recv_dma_addr = dma_map_single(cb->pd->device->dma_device, // recv
+				   &cb->recv_buf,                                   // use recv buffer
 				   sizeof(cb->recv_buf), DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, recv_mapping, cb->recv_dma_addr);
-	cb->send_dma_addr = dma_map_single(cb->pd->device->dma_device, 
-					   &cb->send_buf, sizeof(cb->send_buf),
+	cb->send_dma_addr = dma_map_single(cb->pd->device->dma_device,  // send 
+					   &cb->send_buf, sizeof(cb->send_buf),         // use send buffer
 					   DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, send_mapping, cb->send_dma_addr);
 
-	cb->rdma_buf = kmalloc(cb->size, GFP_KERNEL);
+	cb->rdma_buf = kmalloc(cb->size, GFP_KERNEL);           // alloc rdma buffer
 	if (!cb->rdma_buf) {
 		DEBUG_LOG(PFX "rdma_buf malloc failed\n");
 		ret = -ENOMEM;
@@ -567,7 +562,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 	DEBUG_LOG("@@@ cb->rdma_buf = 0x%llx Jack\n", cb->rdma_buf);
 
 	cb->rdma_dma_addr = dma_map_single(cb->pd->device->dma_device, 
-			       cb->rdma_buf, cb->size, 
+			       cb->rdma_buf, cb->size,                          // userdma buffer 
 			       DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, rdma_mapping, cb->rdma_dma_addr);
 	cb->page_list_len = (((cb->size - 1) & PAGE_MASK) + PAGE_SIZE)
@@ -580,15 +575,14 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		goto bail;
 	}
 
-    
-    //sge.lkey = mr->lkey;
 	DEBUG_LOG(PFX "@@@ reg rkey 0x%x page_list_len %u\n",
 		cb->reg_mr->rkey, cb->page_list_len);
 
-	DEBUG_LOG(PFX "@@@ Jack lkey 0x%x from mr \n",
-		cb->reg_mr->lkey);
+	DEBUG_LOG(PFX "@@@ Jack lkey 0x%x from mr \n", cb->reg_mr->lkey);
     cb->send_sgl.lkey = cb->reg_mr->lkey; // Jack
     cb->recv_sgl.lkey = cb->reg_mr->lkey; // Jack
+
+	DEBUG_LOG(PFX "@@@ Jack lkey 0x%x from mr \n", cb->reg_mr->lkey);
 
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
@@ -720,7 +714,7 @@ static int krping_setup_qp(struct krping_cb *cb, struct rdma_cm_id *cm_id)
 		ret = PTR_ERR(cb->cq);
 		goto err1;
 	}
-	DEBUG_LOG("created cq %p\n", cb->cq);
+	DEBUG_LOG("created cq %p task\n", cb->cq);
 
 	if (!cb->wlat && !cb->rlat && !cb->bw && !cb->frtest) {
 		ret = ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
