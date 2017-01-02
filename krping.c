@@ -1400,6 +1400,22 @@ static void krping_bw_test_server(struct krping_cb *cb)
 
 static int reg_supported(struct ib_device *dev)
 {
+	u64 needed_flags = IB_DEVICE_MEM_MGT_EXTENSIONS |
+			   IB_DEVICE_LOCAL_DMA_LKEY;
+    struct ib_device_attr device_attr; 
+    int ret;
+    ret = ib_query_device(dev, &device_attr);
+    DEBUG_LOG("%s(): retirn %d\n", __func__, ret);
+	
+    if ((device_attr.device_cap_flags & needed_flags) != needed_flags) {
+		printk(KERN_ERR PFX 
+			"Fastreg not supported - device_cap_flags 0x%llx\n",
+			(u64)device_attr.device_cap_flags);
+		return 0;
+	}
+	DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags 0x%llx\n",
+		(u64)device_attr.device_cap_flags);
+
     /*
 	u64 needed_flags = IB_DEVICE_MEM_MGT_EXTENSIONS |
 			   IB_DEVICE_LOCAL_DMA_LKEY;
@@ -1417,7 +1433,7 @@ static int reg_supported(struct ib_device *dev)
 		(u64)dev->attrs.device_cap_flags);
 		//(u64)dev->ib_device_attr.device_cap_flags);
     */
-	DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags ??? (Jack: skip this check)\n");
+	//DEBUG_LOG("Fastreg/local_dma_lkey supported - device_cap_flags ??? (Jack: skip this check)\n");
 	return 1;
 }
 
