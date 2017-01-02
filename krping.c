@@ -570,8 +570,16 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		DEBUG_LOG(PFX "recv_buf reg_mr failed %d\n", ret);
 		goto bail;
 	}
+
+    
+    //sge.lkey = mr->lkey;
 	DEBUG_LOG(PFX "@@@ reg rkey 0x%x page_list_len %u\n",
 		cb->reg_mr->rkey, cb->page_list_len);
+
+	DEBUG_LOG(PFX "@@@ Jack lkey 0x%x from mr \n",
+		cb->reg_mr->lkey);
+
+
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
 
