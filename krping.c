@@ -467,7 +467,7 @@ static int krping_accept(struct krping_cb *cb)
 {
 	struct rdma_conn_param conn_param;
 	int ret;
-	DEBUG_LOG("->%s();\n", __func__);
+	DEBUG_LOG("\n->%s();\n", __func__);
 	DEBUG_LOG("\taccepting client connection request......\n");
 
 	memset(&conn_param, 0, sizeof conn_param);
@@ -500,12 +500,14 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->recv_sgl.addr = cb->recv_dma_addr;
 	cb->recv_sgl.length = sizeof cb->recv_buf;
 	cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey;
+	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
 	cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
 	cb->send_sgl.addr = cb->send_dma_addr;
 	cb->send_sgl.length = sizeof cb->send_buf;
 	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey;
+	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
 
 	cb->sq_wr.opcode = IB_WR_SEND;
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
@@ -534,7 +536,7 @@ static void krping_setup_wr(struct krping_cb *cb)
 static int krping_setup_buffers(struct krping_cb *cb)
 {
 	int ret;
-	DEBUG_LOG("->%s();\n", __func__);
+	DEBUG_LOG("\n->%s();\n", __func__);
 
 	DEBUG_LOG(PFX "krping_setup_buffers called on cb %p\n", cb);
 
@@ -553,6 +555,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		ret = -ENOMEM;
 		goto bail;
 	}
+	DEBUG_LOG("@@@ cb->rdma_buf = 0x%llx Jack\n", cb->rdma_buf);
 
 	cb->rdma_dma_addr = dma_map_single(cb->pd->device->dma_device, 
 			       cb->rdma_buf, cb->size, 
@@ -567,7 +570,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		DEBUG_LOG(PFX "recv_buf reg_mr failed %d\n", ret);
 		goto bail;
 	}
-	DEBUG_LOG(PFX "reg rkey 0x%x page_list_len %u\n",
+	DEBUG_LOG(PFX "@@@ reg rkey 0x%x page_list_len %u\n",
 		cb->reg_mr->rkey, cb->page_list_len);
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
@@ -582,7 +585,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		cb->start_dma_addr = dma_map_single(cb->pd->device->dma_device, 
 						   cb->start_buf, cb->size, 
 						   DMA_BIDIRECTIONAL);
-	    DEBUG_LOG("cb->start_dma_addr = 0x%llx Jack\n", cb->start_dma_addr);
+	    DEBUG_LOG("@@@ cb->start_dma_addr = 0x%llx Jack\n", cb->start_dma_addr);
 		pci_unmap_addr_set(cb, start_mapping, cb->start_dma_addr);
 	}
 
@@ -680,7 +683,7 @@ static int krping_setup_qp(struct krping_cb *cb, struct rdma_cm_id *cm_id)
 	int ret;
 	struct ib_cq_init_attr attr = {0};
 	
-    DEBUG_LOG("->%s();\n", __func__);
+    DEBUG_LOG("\n->%s();\n", __func__);
 
 	//cb->pd = ib_alloc_pd(cm_id->device, 0);
 	cb->pd = ib_alloc_pd(cm_id->device);
@@ -1406,13 +1409,11 @@ static int reg_supported(struct ib_device *dev)
     struct ib_device_attr device_attr; 
     int ret;
     ret = ib_query_device(dev, &device_attr);
-    DEBUG_LOG("%s(): retirn %d\n", __func__, ret);
-    
+    //DEBUG_LOG("%s(): return %d\n", __func__, ret);
+    //DEBUG_LOG("%s(): needed_flags %llx\n", __func__, needed_flags);
+    //DEBUG_LOG("%s(): device_attr.device_cap_flag %llx\n", __func__, device_attr.device_cap_flags);
     DEBUG_LOG("%s(): IB_DEVICE_MEM_MGT_EXTENSIONS %llx\n", __func__, IB_DEVICE_MEM_MGT_EXTENSIONS);
     DEBUG_LOG("%s(): IB_DEVICE_LOCAL_DMA_LKEY %llx\n", __func__, IB_DEVICE_LOCAL_DMA_LKEY);
-
-    DEBUG_LOG("%s(): needed_flags %llx\n", __func__, needed_flags);
-    DEBUG_LOG("%s(): device_attr.device_cap_flag %llx\n", __func__, device_attr.device_cap_flags);
     DEBUG_LOG("%s(): (device_attr.device_cap_flags & needed_flags) %llx\n", __func__, (device_attr.device_cap_flags & needed_flags));
 	
     if ((device_attr.device_cap_flags & needed_flags) != needed_flags) {
@@ -1957,7 +1958,7 @@ static int krping_connect_client(struct krping_cb *cb)
 	struct rdma_conn_param conn_param;
 	int ret;
 	
-    DEBUG_LOG("->%s();\n", __func__);
+    DEBUG_LOG("\n->%s();\n", __func__);
 
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 1;
