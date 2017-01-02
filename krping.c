@@ -500,23 +500,18 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->recv_sgl.addr = cb->recv_dma_addr;
 	cb->recv_sgl.length = sizeof cb->recv_buf;
 	//cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; //Jack
-	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
-	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
 	cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
 	cb->send_sgl.addr = cb->send_dma_addr;
 	cb->send_sgl.length = sizeof cb->send_buf;
 	//cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //Jack
-    
-    
 
-	DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
-	DEBUG_LOG("@@@ cb->send_sgl.lkey = %d\n", cb->qp->device->local_dma_lkey);
-    
-    //
-    cb->reg_mr->lkey = cb->qp->device->local_dma_lkey; // Jack
-
+    cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // Jack
+	
+    DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
+	DEBUG_LOG("@@@ cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
+	DEBUG_LOG("@@@ cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
 
 	cb->sq_wr.opcode = IB_WR_SEND;
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
