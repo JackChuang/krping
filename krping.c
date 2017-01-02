@@ -574,14 +574,20 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		goto bail;
 	}
 
-	DEBUG_LOG(PFX "@@@ reg rkey 0x%x page_list_len %u\n",
-		cb->reg_mr->rkey, cb->page_list_len);
+	DEBUG_LOG("@@@ reg rkey 0x%x page_list_len %u\n",
+	cb->reg_mr->rkey, cb->page_list_len);
 
-	DEBUG_LOG(PFX "@@@ Jack lkey 0x%x from mr \n", cb->reg_mr->lkey);
     cb->send_sgl.lkey = cb->reg_mr->lkey; // Jack
     cb->recv_sgl.lkey = cb->reg_mr->lkey; // Jack
+	DEBUG_LOG("@@@ Jack lkey 0x%x from mr \n", cb->reg_mr->lkey);
 
-	DEBUG_LOG(PFX "@@@ Jack lkey 0x%x from mr \n", cb->reg_mr->lkey);
+    // check all mr
+	DEBUG_LOG("\n");
+	DEBUG_LOG("@@@ Jack cb->dma_mr->lkey lkey 0x%x from mr \n", cb->dma_mr->lkey);
+	DEBUG_LOG("@@@ Jack cb->rdma_mr->lkeylkey 0x%x from mr \n", cb->rdma_mr->lkey);
+	DEBUG_LOG("@@@ Jack cb->start_mr->lkey lkey 0x%x from mr \n", cb->start_mr->lkey);
+	DEBUG_LOG("\n");
+
 
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
