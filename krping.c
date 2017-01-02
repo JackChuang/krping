@@ -583,9 +583,11 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
     // check all mr
 	DEBUG_LOG("\n");
-	DEBUG_LOG("@@@ Jack cb->dma_mr->lkey lkey 0x%x from mr \n", cb->dma_mr->lkey);
-	DEBUG_LOG("@@@ Jack cb->rdma_mr->lkeylkey 0x%x from mr \n", cb->rdma_mr->lkey);
-	DEBUG_LOG("@@@ Jack cb->start_mr->lkey lkey 0x%x from mr \n", cb->start_mr->lkey);
+    //DEBUG_LOG("@@@ Jack cb->dma_mr->lkey lkey 0x%x from mr \n", cb->dma_mr->lkey);
+    if (cb->rdma_mr!=NULL)
+	    DEBUG_LOG("@@@ Jack cb->rdma_mr->lkeylkey 0x%x from mr \n", cb->rdma_mr->lkey);
+	if (cb->start_mr!=NULL)
+    DEBUG_LOG("@@@ Jack cb->start_mr->lkey lkey 0x%x from mr \n", cb->start_mr->lkey);
 	DEBUG_LOG("\n");
 
 
