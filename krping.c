@@ -1406,6 +1406,12 @@ static int reg_supported(struct ib_device *dev)
     int ret;
     ret = ib_query_device(dev, &device_attr);
     DEBUG_LOG("%s(): retirn %d\n", __func__, ret);
+    
+    DEBUG_LOG("%s(): IB_DEVICE_MEM_MGT_EXTENSIONS %llx\n", __func__, IB_DEVICE_MEM_MGT_EXTENSIONS);
+    DEBUG_LOG("%s(): IB_DEVICE_LOCAL_DMA_LKEY %llx\n", __func__, IB_DEVICE_LOCAL_DMA_LKEY);
+
+    DEBUG_LOG("%s(): needed_flags %llx\n", __func__, needed_flags);
+    DEBUG_LOG("%s(): device_attr.device_cap_flag %llx\n", __func__, device_attr.device_cap_flags);
 	
     if ((device_attr.device_cap_flags & needed_flags) != needed_flags) {
 		printk(KERN_ERR PFX 
