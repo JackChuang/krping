@@ -277,7 +277,8 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 
 	case RDMA_CM_EVENT_ESTABLISHED:
 		DEBUG_LOG("ESTABLISHED\n");
-		if (!cb->server) { // JackM
+		//if (!cb->server) { // JackM
+		if (cb->server) { // JackM
 			cb->state = CONNECTED;
 		}
         DEBUG_LOG("%s(): cb->state=%d, CONNECTED=%d\n", __func__, cb->state, CONNECTED);
@@ -508,9 +509,9 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
     //cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // JackM
 	
-    DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
-	DEBUG_LOG("@@@ cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
-	DEBUG_LOG("@@@ cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
+    DEBUG_LOG("@@@ 2 cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
+	DEBUG_LOG("@@@ 2 cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
+	DEBUG_LOG("@@@ 2 cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
 
 	cb->sq_wr.opcode = IB_WR_SEND; // normal send / recv
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
@@ -580,9 +581,9 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
     //cb->send_sgl.lkey = cb->reg_mr->lkey; // JackM
     //cb->recv_sgl.lkey = cb->reg_mr->lkey; // JackM
-	DEBUG_LOG("@@@ Jack cb->reg_mr->lkey 0x%x from mr \n", cb->reg_mr->lkey);
-	DEBUG_LOG("@@@ Jack cb->send_sgl.lkey 0x%x from mr \n", cb->send_sgl.lkey);
-	DEBUG_LOG("@@@ Jack cb->recv_sgl.lkey 0x%x from mr \n", cb->recv_sgl.lkey);
+	DEBUG_LOG("@@@ 1 Jack cb->reg_mr->lkey 0x%x from mr \n", cb->reg_mr->lkey);
+	DEBUG_LOG("@@@ 1 Jack cb->send_sgl.lkey 0x%x from mr \n", cb->send_sgl.lkey);
+	DEBUG_LOG("@@@ 1 Jack cb->recv_sgl.lkey 0x%x from mr \n", cb->recv_sgl.lkey);
 
     // check all mr
     DEBUG_LOG("\n");
