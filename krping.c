@@ -278,9 +278,8 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 	case RDMA_CM_EVENT_ESTABLISHED:
 		DEBUG_LOG("ESTABLISHED\n");
 		//if (!cb->server) { // JackM
-		if (cb->server) { // JackM
 			cb->state = CONNECTED;
-		}
+		//}
         DEBUG_LOG("%s(): cb->state=%d, CONNECTED=%d\n", __func__, cb->state, CONNECTED);
 		wake_up(&cb->sem);
 		//wake_up_interruptible(&cb->sem);
