@@ -497,17 +497,25 @@ static int krping_accept(struct krping_cb *cb)
 
 static void krping_setup_wr(struct krping_cb *cb)
 {
-	cb->recv_sgl.addr = cb->recv_dma_addr;
+	cb->recv_sgl.addr = cb->recv_dma_addr; // addr
 	cb->recv_sgl.length = sizeof cb->recv_buf;
     cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
 	cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
-	cb->send_sgl.addr = cb->send_dma_addr;
+	cb->send_sgl.addr = cb->send_dma_addr; // addr
 	cb->send_sgl.length = sizeof cb->send_buf;
 	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
     //cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // JackM
-	
+
+
+	DEBUG_LOG("@@@ 2 addr\n");
+	DEBUG_LOG("@@@ 2 cb->recv_sgl.addr = %d\n", cb->recv_sgl.addr);
+	DEBUG_LOG("@@@ 2 cb->recv_dma_addr = %d\n", cb->recv_dma_addr); 
+	DEBUG_LOG("@@@ 2 cb->send_sgl.addr = %d\n", cb->send_sgl.addr);
+	DEBUG_LOG("@@@ 2 cb->send_dma_addr = %d\n", cb->send_dma_addr);
+
+	DEBUG_LOG("@@@ 2 lkey\n");
     DEBUG_LOG("@@@ 2 cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
 	DEBUG_LOG("@@@ 2 cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
 	DEBUG_LOG("@@@ 2 cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
@@ -787,7 +795,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	sg_dma_len(&sg) = cb->size;
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
-	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // 
+	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
 	BUG_ON(ret <= 0 || ret > cb->page_list_len);
 
 	DEBUG_LOG(PFX "post_inv = %d, reg_mr new rkey 0x%x pgsz %u len %u"
@@ -1599,7 +1607,7 @@ static void krping_test_client(struct krping_cb *cb)
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
 
 		/* Put some ascii text in the buffer. */
-		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping);
+		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf
 		for (i = cc, c = start; i < cb->size; i++) {
 			cb->start_buf[i] = c;
 			c++;
@@ -1630,6 +1638,17 @@ static void krping_test_client(struct krping_cb *cb)
 
 	    DEBUG_LOG("\n\n\n"); msleep(3000);
 	    DEBUG_LOG("ib_post_send>>>>\n");
+    
+       
+        /** When using kernel space verbs, before and after RDMA operations it is recommended to call ib_dma_sync*(OFED API) on buffers because of CPU cache. **/
+            struct scatterlist sg = {0};
+            //sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
+            //sg_dma_address(&sg) = cb->rdma_dma_addr;      // rdma_buf = rdma_buf 
+            sg_dma_address(&sg) = cb->start_dma_addr;      // rdma_buf = rdma_buf 
+            sg_dma_len(&sg) = cb->size;
+            ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev 
+        
+
         // pd -> cq -> qp.  cb->qp->device->local_dma_lkey
         // qp, ib_send_wr, ib_send_wr
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
@@ -1638,7 +1657,7 @@ static void krping_test_client(struct krping_cb *cb)
 			break;
 		}
        
-	    DEBUG_LOG("\n\n\n");
+	    DEBUG_LOG("\n");
 	    DEBUG_LOG("blocking wait......\n");
         msleep(5000);
 	    DEBUG_LOG("\n");
@@ -1656,7 +1675,7 @@ static void krping_test_client(struct krping_cb *cb)
 	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
-			printk(KERN_ERR PFX "post send error %d\n", ret);
+			printk(KERN_ERR PFX "post send error %d\n", ret); // error here
 			break;
 		}
 
