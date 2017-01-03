@@ -505,19 +505,20 @@ static void krping_setup_wr(struct krping_cb *cb)
 
 	cb->send_sgl.addr = cb->send_dma_addr;
 	cb->send_sgl.length = sizeof cb->send_buf;
-	//cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //Jack
+	//cb->send_sgl.lkey = cb->qp->device->local_dma_lkeyqp->device->local_dma_lkey; //Jack
     cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // Jack
 	
     DEBUG_LOG("@@@ cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
 	DEBUG_LOG("@@@ cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
 	DEBUG_LOG("@@@ cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
 
-	cb->sq_wr.opcode = IB_WR_SEND;
+	cb->sq_wr.opcode = IB_WR_SEND; // normal send / recv
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
-	cb->sq_wr.sg_list = &cb->send_sgl;
+	cb->sq_wr.sg_list = &cb->send_sgl; // sge
 	cb->sq_wr.num_sge = 1;
 
-	if (cb->server || cb->wlat || cb->rlat || cb->bw) {
+	if (cb->server || cb->wlat || cb->rlat || cb->bw) { //(only server setup rdma_sq_wr)
+        DEBUG_LOG("only server setup rdma_sq_wr\n");
 		cb->rdma_sgl.addr = cb->rdma_dma_addr;
 		cb->rdma_sq_wr.wr.send_flags = IB_SEND_SIGNALED;
 		cb->rdma_sq_wr.wr.sg_list = &cb->rdma_sgl;
@@ -566,7 +567,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 	pci_unmap_addr_set(cb, rdma_mapping, cb->rdma_dma_addr);
 	cb->page_list_len = (((cb->size - 1) & PAGE_MASK) + PAGE_SIZE)
 				>> PAGE_SHIFT;
-	cb->reg_mr = ib_alloc_mr(cb->pd,  IB_MR_TYPE_MEM_REG,
+	cb->reg_mr = ib_alloc_mr(cb->pd,  IB_MR_TYPE_MEM_REG, // fill up lkey and rkey
 				 cb->page_list_len);
 	if (IS_ERR(cb->reg_mr)) {
 		ret = PTR_ERR(cb->reg_mr);
@@ -575,25 +576,34 @@ static int krping_setup_buffers(struct krping_cb *cb)
 	}
 
 	DEBUG_LOG("@@@ reg rkey 0x%x page_list_len %u\n",
-	cb->reg_mr->rkey, cb->page_list_len);
+	                cb->reg_mr->rkey, cb->page_list_len);
 
     cb->send_sgl.lkey = cb->reg_mr->lkey; // Jack
     cb->recv_sgl.lkey = cb->reg_mr->lkey; // Jack
-	DEBUG_LOG("@@@ Jack lkey 0x%x from mr \n", cb->reg_mr->lkey);
+	DEBUG_LOG("@@@ Jack cb->reg_mr->lkey 0x%x from mr \n", cb->reg_mr->lkey);
+	DEBUG_LOG("@@@ Jack cb->send_sgl.lkey 0x%x from mr \n", cb->send_sgl.lkey);
+	DEBUG_LOG("@@@ Jack cb->recv_sgl.lkey 0x%x from mr \n", cb->recv_sgl.lkey);
 
     // check all mr
-	DEBUG_LOG("\n");
-    //DEBUG_LOG("@@@ Jack cb->dma_mr->lkey lkey 0x%x from mr \n", cb->dma_mr->lkey);
-    if (cb->rdma_mr!=NULL)
-	    DEBUG_LOG("@@@ Jack cb->rdma_mr->lkeylkey 0x%x from mr \n", cb->rdma_mr->lkey);
-	if (cb->start_mr!=NULL)
-    DEBUG_LOG("@@@ Jack cb->start_mr->lkey lkey 0x%x from mr \n", cb->start_mr->lkey);
+    DEBUG_LOG("\n");
+    if (cb->dma_mr!=NULL) {
+        DEBUG_LOG("@@@ Jack cb->dma_mr->lkey 0x%x from mr \n", cb->dma_mr->lkey);
+        DEBUG_LOG("@@@ Jack cb->dma_mr->rkey 0x%x from mr \n", cb->dma_mr->rkey);
+    }
+    if (cb->rdma_mr!=NULL) {
+	    DEBUG_LOG("@@@ Jack cb->rdma_mr->lkey 0x%x from mr \n", cb->rdma_mr->lkey);
+	    DEBUG_LOG("@@@ Jack cb->rdma_mr->rkey 0x%x from mr \n", cb->rdma_mr->rkey);
+    }
+    if (cb->start_mr!=NULL) {
+        DEBUG_LOG("@@@ Jack cb->start_mr->lkey 0x%x from mr \n", cb->start_mr->lkey);
+        DEBUG_LOG("@@@ Jack cb->start_mr->rkey 0x%x from mr \n", cb->start_mr->rkey);
+    }
 	DEBUG_LOG("\n");
 
 
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
-
+        DEBUG_LOG("only server setup start_buf start_dma_addr\n");
 		cb->start_buf = kmalloc(cb->size, GFP_KERNEL);
 		if (!cb->start_buf) {
 			DEBUG_LOG(PFX "start_buf malloc failed\n");
@@ -604,11 +614,11 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		cb->start_dma_addr = dma_map_single(cb->pd->device->dma_device, 
 						   cb->start_buf, cb->size, 
 						   DMA_BIDIRECTIONAL);
-	    DEBUG_LOG("@@@ cb->start_dma_addr = 0x%llx Jack\n", cb->start_dma_addr);
+	    DEBUG_LOG("@@@ cb->start_dma_addr = 0x%llx Jack (only client)\n", cb->start_dma_addr);
 		pci_unmap_addr_set(cb, start_mapping, cb->start_dma_addr);
 	}
 
-	krping_setup_wr(cb);
+	krping_setup_wr(cb); //(only server setup rdma_sq_wr)
 	DEBUG_LOG(PFX "allocated & registered buffers...\n");
 	DEBUG_LOG("\n\n");
 	return 0;
@@ -705,7 +715,7 @@ static int krping_setup_qp(struct krping_cb *cb, struct rdma_cm_id *cm_id)
     DEBUG_LOG("\n->%s();\n", __func__);
 
 	//cb->pd = ib_alloc_pd(cm_id->device, 0);
-	cb->pd = ib_alloc_pd(cm_id->device);
+	cb->pd = ib_alloc_pd(cm_id->device);    
 	if (IS_ERR(cb->pd)) {
 		printk(KERN_ERR PFX "ib_alloc_pd failed\n");
 		return PTR_ERR(cb->pd);
@@ -772,11 +782,11 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_READ;
 	else
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
-	sg_dma_address(&sg) = buf;
+	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
 	sg_dma_len(&sg) = cb->size;
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
-	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);
+	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // 
 	BUG_ON(ret <= 0 || ret > cb->page_list_len);
 
 	DEBUG_LOG(PFX "post_inv = %d, reg_mr new rkey 0x%x pgsz %u len %u"
@@ -796,13 +806,13 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		printk(KERN_ERR PFX "post send error %d\n", ret);
 		cb->state = ERROR;
 	}
-	rkey = cb->reg_mr->rkey;
+	rkey = cb->reg_mr->rkey; //
 	return rkey;
 }
 
 static void krping_format_send(struct krping_cb *cb, u64 buf)
 {
-	struct krping_rdma_info *info = &cb->send_buf;
+	struct krping_rdma_info *info = &cb->send_buf; // update send_buf
 	u32 rkey;
 
 	/*
@@ -810,11 +820,11 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 * advertising the rdma buffer.  Server side
 	 * sends have no data.
 	 */
-	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
+	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate);
-		info->buf = htonll(buf);
-		info->rkey = htonl(rkey);
-		info->size = htonl(cb->size);
+		info->buf = htonll(buf);            // update
+		info->rkey = htonl(rkey);           // update
+		info->size = htonl(cb->size);       // update
 		DEBUG_LOG("RDMA addr %llx rkey %x len %d\n",
 			  (unsigned long long)buf, rkey, cb->size);
 	}
@@ -1600,14 +1610,26 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		cb->start_buf[cb->size - 1] = 0;
 
-	    DEBUG_LOG("\n\n\n"); msleep(5000);
-		krping_format_send(cb, cb->start_dma_addr);
+	    DEBUG_LOG("\n\n\n"); msleep(3000);
+        
+        if (cb->start_dma_addr!=NULL)
+            DEBUG_LOG("%s(): cb->start_dma_addr = 0x%llx then upsate rkey\n", cb->start_dma_addr);
+        else
+            DEBUG_LOG("%s(): cb->start_dma_addr = 0x%llx then upsate rkey\n", NULL);
+
+        krping_format_send(cb, cb->start_dma_addr); // (only client) update rkey (send buf)               
 		if (cb->state == ERROR) {
 			printk(KERN_ERR PFX "krping_format_send failed\n");
 			break;
 		}
-	    DEBUG_LOG("\n\n\n"); msleep(5000);
+	    DEBUG_LOG("updated cb->send_buf.buf = 0x%llx\n", cb->send_buf.buf); //Jack123
+	    DEBUG_LOG("updated cb->send_buf.rkey = 0x%llx\n", cb->send_buf.rkey);
+	    DEBUG_LOG("updated cb->send_buf.size = 0x%d\n", cb->send_buf.size);
+
+	    DEBUG_LOG("\n\n\n"); msleep(3000);
 	    DEBUG_LOG("ib_post_send>>>>\n");
+        // pd -> cq -> qp.  cb->qp->device->local_dma_lkey
+        // qp, ib_send_wr, ib_send_wr
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -1617,7 +1639,7 @@ static void krping_test_client(struct krping_cb *cb)
 	    DEBUG_LOG("\n\n\n");
 	    DEBUG_LOG("blocking wait......\n");
         msleep(5000);
-	    DEBUG_LOG("\n\n\n");
+	    DEBUG_LOG("\n");
 		/* Wait for server to ACK */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_WRITE_ADV);
 		if (cb->state != RDMA_WRITE_ADV) {
@@ -1798,11 +1820,13 @@ static void krping_bw_test_client(struct krping_cb *cb)
 	cb->state = RDMA_READ_ADV;
 
 	/* Send STAG/TO/Len to client */
-	krping_format_send(cb, cb->start_dma_addr);
+	DEBUG_LOG("%s(): cb->start_dma_addr = 0x%llx then upsate rkey\n", cb->start_dma_addr);
+	krping_format_send(cb, cb->start_dma_addr); // (only client) update rkey (send buf)
 	if (cb->state == ERROR) {
 		printk(KERN_ERR PFX "krping_format_send failed\n");
 		return;
 	}
+
 	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 	if (ret) {
 		printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -1898,7 +1922,7 @@ static void krping_fr_test(struct krping_cb *cb)
 
 	sg_dma_address(&sg) = 0xcafebabe0000UL;
 	sg_dma_len(&sg) = size;
-	//ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE);
+	//ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE); //offset=NULL
 	ret = ib_map_mr_sg(mr, &sg, 1, PAGE_SIZE);
 	if (ret <= 0) {
 		printk(KERN_ERR PFX "ib_map_mr_sge err %d\n", ret);
