@@ -354,6 +354,7 @@ static int client_recv(struct krping_cb *cb, struct ib_wc *wc)
 	return 0;
 }
 
+//static void to remotekrping_cq_event_handler(struct ib_cq *cq, void *ctx)
 static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 {
 	struct krping_cb *cb = ctx;
@@ -499,8 +500,8 @@ static void krping_setup_wr(struct krping_cb *cb)
 {
 	cb->recv_sgl.addr = cb->recv_dma_addr; // addr
 	cb->recv_sgl.length = sizeof cb->recv_buf;
-    cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
-	cb->rq_wr.sg_list = &cb->recv_sgl;
+    cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM  // for sending?
+    cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
 	cb->send_sgl.addr = cb->send_dma_addr; // addr
@@ -508,9 +509,10 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
     //cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // JackM
 
+//JACK
 
 	DEBUG_LOG("@@@ 2 addr\n");
-	DEBUG_LOG("@@@ 2 cb->recv_sgl.addr = %d\n", cb->recv_sgl.addr);
+	DEBUG_LOG("@@@ 2 cb->recv_sgl.addr = %d\n", cb->recv_sgl.addr); // this is not local_recv_buffer // so I guess is exhanged local addr to remote
 	DEBUG_LOG("@@@ 2 cb->recv_dma_addr = %d\n", cb->recv_dma_addr); 
 	DEBUG_LOG("@@@ 2 cb->send_sgl.addr = %d\n", cb->send_sgl.addr);
 	DEBUG_LOG("@@@ 2 cb->send_dma_addr = %d\n", cb->send_dma_addr);
@@ -519,6 +521,10 @@ static void krping_setup_wr(struct krping_cb *cb)
     DEBUG_LOG("@@@ 2 cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
 	DEBUG_LOG("@@@ 2 cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
 	DEBUG_LOG("@@@ 2 cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
+	DEBUG_LOG("@@@ 3lkey=%d from mad (ctx->pd->local_dma_lkey)\n", cb->pd->local_dma_lkey);
+	DEBUG_LOG("@@@ 4lkey=%d from client\/server example(cb->mr->lkey)\n", cb->reg_mr->lkey);
+
+
 
 	cb->sq_wr.opcode = IB_WR_SEND; // normal send / recv
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
@@ -561,7 +567,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 					   DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, send_mapping, cb->send_dma_addr);
 
-	cb->rdma_buf = kmalloc(cb->size, GFP_KERNEL);           // alloc rdma buffer
+	cb->rdma_buf = kmalloc(cb->size, GFP_KERNEL);           // alloc rdma buffer (the only allocated buf)
 	if (!cb->rdma_buf) {
 		DEBUG_LOG(PFX "rdma_buf malloc failed\n");
 		ret = -ENOMEM;
@@ -853,6 +859,16 @@ static void krping_test_server(struct krping_cb *cb)
 		//    printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
 		//    break;
 	    //}
+
+            /** When using kernel space verbs, before and after RDMA operations it is recommended to call ib_dma_sync*(OFED API) on buffers because of CPU cache. **/
+            /*
+            struct scatterlist sg = {0};
+            //sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
+            //sg_dma_address(&sg) = cb->rdma_dma_addr;      // rdma_buf = rdma_buf 
+            sg_dma_address(&sg) = cb->start_dma_addr;      // rdma_buf = rdma_buf 
+            sg_dma_len(&sg) = cb->size;
+            ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev 
+            */
 
 		/* Wait for client's Start STAG/TO/Len */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_READ_ADV);
