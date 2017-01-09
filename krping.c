@@ -509,6 +509,14 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
     //cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // JackM
 
+
+    //3
+    cb->recv_sgl.lkey = cb->pd->local_dma_lkey;
+	cb->send_sgl.lkey = cb->pd->local_dma_lkey;
+    //4
+    //cb->recv_sgl.lkey = cb->reg_mr->lkey;
+	//cb->send_sgl.lkey = cb->reg_mr->lkey;
+
 //JACK
 
 	DEBUG_LOG("@@@ 2 addr\n");
