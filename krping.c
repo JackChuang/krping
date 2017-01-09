@@ -831,7 +831,7 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 */
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate);
-		info->buf = htonll(buf);            // update
+		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
 		info->size = htonl(cb->size);       // update
 		DEBUG_LOG("RDMA addr %llx rkey %x len %d\n",
@@ -939,7 +939,7 @@ static void krping_test_server(struct krping_cb *cb)
 		DEBUG_LOG("server received sink adv\n");
 
 		/* RDMA Write echo data */
-		cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;
+		cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;  //WRITE
 		cb->rdma_sq_wr.rkey = cb->remote_rkey;
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;
 		cb->rdma_sq_wr.wr.sg_list->length = strlen(cb->rdma_buf) + 1;
@@ -1637,30 +1637,30 @@ static void krping_test_client(struct krping_cb *cb)
         DEBUG_LOG("@@@ (check) cb->start_dma_addr = 0x%llx Jack (only client)\n", cb->start_dma_addr); 
 
 	    DEBUG_LOG("\n\n\n"); msleep(3000);
-	    DEBUG_LOG("ib_post_send>>>>\n");
+	    DEBUG_LOG("2. ib_post_send>>>>\n");
     
        
         /** When using kernel space verbs, before and after RDMA operations it is recommended to call ib_dma_sync*(OFED API) on buffers because of CPU cache. **/
+            /*
             struct scatterlist sg = {0};
             //sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
             //sg_dma_address(&sg) = cb->rdma_dma_addr;      // rdma_buf = rdma_buf 
             sg_dma_address(&sg) = cb->start_dma_addr;      // rdma_buf = rdma_buf 
             sg_dma_len(&sg) = cb->size;
             ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev 
-        
+            */
 
         // pd -> cq -> qp.  cb->qp->device->local_dma_lkey
         // qp, ib_send_wr, ib_send_wr
-		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
+		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr); // send
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
        
-	    DEBUG_LOG("\n");
 	    DEBUG_LOG("blocking wait......\n");
-        msleep(5000);
-	    DEBUG_LOG("\n");
+        msleep(3000);
+	    DEBUG_LOG("\n\n\n");
 		/* Wait for server to ACK */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_WRITE_ADV);
 		if (cb->state != RDMA_WRITE_ADV) {
