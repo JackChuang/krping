@@ -59,7 +59,7 @@
 
 #define PFX "krping: "
 
-static int debug = 1;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 #define DEBUG_LOG if (debug) printk
@@ -498,13 +498,16 @@ static int krping_accept(struct krping_cb *cb)
 
 static void krping_setup_wr(struct krping_cb *cb)
 {
-	cb->recv_sgl.addr = cb->recv_dma_addr; // addr
+	//cb->recv_sgl.addr = cb->recv_dma_addr; // addr
+	cb->recv_sgl.addr = cb->recv_buf.buf; // addr2 test
 	cb->recv_sgl.length = sizeof cb->recv_buf;
+	printk("sizeof cb->recv_buf=%d, sizeof cb->recv_buf.buf=%d\n", sizeof cb->recv_buf, sizeof cb->recv_buf.buf);
     cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
     cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
-	cb->send_sgl.addr = cb->send_dma_addr; // addr
+	//cb->send_sgl.addr = cb->send_dma_addr; // addr
+	cb->send_sgl.addr = cb->send_buf.buf; // addr2 test
 	cb->send_sgl.length = sizeof cb->send_buf;
 	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
     //cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // JackM
@@ -559,8 +562,8 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
 	DEBUG_LOG(PFX "krping_setup_buffers called on cb %p\n", cb);
 
-	cb->recv_dma_addr = dma_map_single(cb->pd->device->dma_device, // recv
-				   &cb->recv_buf,                                   // use recv buffer
+	cb->recv_dma_addr = dma_map_single(cb->pd->device->dma_device,  // for remote 
+				   &cb->recv_buf,                                   // for local access
 				   sizeof(cb->recv_buf), DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, recv_mapping, cb->recv_dma_addr);
 	cb->send_dma_addr = dma_map_single(cb->pd->device->dma_device,  // send 
@@ -1003,6 +1006,7 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 		DEBUG_LOG("server posted go ahead\n");
+    break;
 	}
 }
 
@@ -1620,7 +1624,8 @@ static void krping_test_client(struct krping_cb *cb)
 	unsigned char c;
 
 	start = 65;
-	for (ping = 0; !cb->count || ping < cb->count; ping++) {
+	//for (ping = 0; !cb->count || ping < cb->count; ping++) {
+	for (ping = 0; !cb->count || ping < cb->count || ping<1; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
 
 		/* Put some ascii text in the buffer. */
