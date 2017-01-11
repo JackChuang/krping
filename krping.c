@@ -500,39 +500,32 @@ static void krping_setup_wr(struct krping_cb *cb)
 {
 	cb->recv_sgl.addr = cb->recv_dma_addr; // addr
 	cb->recv_sgl.length = sizeof cb->recv_buf;
-    cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM  // for sending?
+    cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
     cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
 	cb->send_sgl.addr = cb->send_dma_addr; // addr
 	cb->send_sgl.length = sizeof cb->send_buf;
-	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; //JackM
+	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
     //cb->qp->device->local_dma_lkey = cb->reg_mr->lkey; // JackM
 
-
     //3
-    cb->recv_sgl.lkey = cb->pd->local_dma_lkey;
-	cb->send_sgl.lkey = cb->pd->local_dma_lkey;
+    cb->recv_sgl.lkey = cb->pd->local_dma_lkey; // correct
+	cb->send_sgl.lkey = cb->pd->local_dma_lkey; // correct
     //4
     //cb->recv_sgl.lkey = cb->reg_mr->lkey;
 	//cb->send_sgl.lkey = cb->reg_mr->lkey;
 
-//JACK
-
-	DEBUG_LOG("@@@ 2 addr\n");
-	DEBUG_LOG("@@@ 2 cb->recv_sgl.addr = %d\n", cb->recv_sgl.addr); // this is not local_recv_buffer // so I guess is exhanged local addr to remote
+	DEBUG_LOG("@@@ <addr>\n");
+	DEBUG_LOG("@@@ 2 cb->recv_sgl.addr = %d\n", cb->recv_sgl.addr); // this is not local_recv_buffer // it's exhanged local addr to remote
 	DEBUG_LOG("@@@ 2 cb->recv_dma_addr = %d\n", cb->recv_dma_addr); 
 	DEBUG_LOG("@@@ 2 cb->send_sgl.addr = %d\n", cb->send_sgl.addr);
 	DEBUG_LOG("@@@ 2 cb->send_dma_addr = %d\n", cb->send_dma_addr);
 
-	DEBUG_LOG("@@@ 2 lkey\n");
-    DEBUG_LOG("@@@ 2 cb->recv_sgl.lkey = %d\n", cb->recv_sgl.lkey);
-	DEBUG_LOG("@@@ 2 cb->send_sgl.lkey = %d\n", cb->send_sgl.lkey);
+	DEBUG_LOG("@@@ <lkey>\n");
 	DEBUG_LOG("@@@ 2 cb->qp->device->local_dma_lkey = %d\n", cb->qp->device->local_dma_lkey);
 	DEBUG_LOG("@@@ 3lkey=%d from mad (ctx->pd->local_dma_lkey)\n", cb->pd->local_dma_lkey);
 	DEBUG_LOG("@@@ 4lkey=%d from client\/server example(cb->mr->lkey)\n", cb->reg_mr->lkey);
-
-
 
 	cb->sq_wr.opcode = IB_WR_SEND; // normal send / recv
 	cb->sq_wr.send_flags = IB_SEND_SIGNALED;
@@ -901,7 +894,7 @@ static void krping_test_server(struct krping_cb *cb)
 		else {
 
 			cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_READ;
-			/* 
+			/*  
 			 * Immediately follow the read with a 
 			 * fenced LOCAL_INV.
 			 */
