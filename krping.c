@@ -1008,7 +1008,6 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 		DEBUG_LOG("server posted go ahead\n");
-    break;
 	}
 }
 
@@ -1626,8 +1625,7 @@ static void krping_test_client(struct krping_cb *cb)
 	unsigned char c;
 
 	start = 65;
-	//for (ping = 0; !cb->count || ping < cb->count; ping++) {
-	for (ping = 0; !cb->count || ping < cb->count || ping<1; ping++) {
+	for (ping = 0; !cb->count || ping < cb->count; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
 
 		/* Put some ascii text in the buffer. */
