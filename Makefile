@@ -3,11 +3,14 @@ KOBJ=/lib/modules/`uname -r`/build
 
 
 obj-m += rdma_krping.o
+#obj-m += server.o
 rdma_krping-y			:= getopt.o krping.o
 
 default:
 	make -C $(KSRC) M=`pwd` modules
 
+#server:
+#	make -C $(KSRC) M=`pwd` modules
 install:
 	make -C $(KSRC) M=`pwd` modules_install
 	depmod -a

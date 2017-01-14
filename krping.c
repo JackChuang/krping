@@ -550,6 +550,7 @@ static void krping_setup_wr(struct krping_cb *cb)
 	 * both unsignaled.  The client uses them to reregister
 	 * the rdma buffers with a new key each iteration.
 	 */
+    // Jack: check can we fix the key
 	cb->reg_mr_wr.wr.opcode = IB_WR_REG_MR;     //(legacy:fastreg)
 	cb->reg_mr_wr.mr = cb->reg_mr;
 
@@ -2254,7 +2255,7 @@ int krping_doit(char *cmd)
 			cb->duplex++;
 			break;
 		case 'I':
-			cb->server_invalidate = 1;
+			cb->server_invalidate = 0; //Jack default=1
 			break;
 		case 'T':
 			cb->txdepth = optint;
@@ -2265,7 +2266,7 @@ int krping_doit(char *cmd)
 			DEBUG_LOG("using local dma lkey\n");
 			break;
 		case 'R':
-			cb->read_inv = 1;
+			cb->read_inv = 0; // Jack default=1
 			DEBUG_LOG("using read-with-inv\n");
 			break;
 		case 'f':
