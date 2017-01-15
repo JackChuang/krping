@@ -82,7 +82,19 @@
 static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
-#define DEBUG_LOG if (debug) printk
+
+
+
+
+#define KRPING_EXP_LOG 1
+#define KRPING_EXP_DATA 1
+
+// for making sure data is good (not gaurantee it doesn't affect data)
+#define EXP_LOG if(KRPING_EXP_LOG) printk
+#define EXP_DATA if(KRPING_EXP_DATA) printk
+#define DEBUG_LOG if(debug && !KRPING_EXP_DATA) printk
+
+#define KRPRINT_INIT printk
 
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping server");
@@ -907,26 +919,20 @@ static void krping_test_server(struct krping_cb *cb)
 		
         
         
-        DEBUG_LOG("----- cb->size=%d -----\n", cb->size);
-        //TODO: place a timer here ( rdtll) TODO: remove all DEBUG msg 
-        //TODO: check SIZE- - 128k really!? 
 // example:
 // unsigned long ts_start, ts_end;
 // rdtscll(ts_start);
 // (...measuring...)
 // rdtscll(ts_end);
         
-        
         unsigned long ts_start, ts_compose, ts_post, ts_end;
+        // time1 : compose msg info
         rdtscll(ts_start);
-        // 
-        //vmalloc(4k); rdma_dma_addr // payload or receiveing buf (ithink depends 1st or 2nd) TODO: check 2nd's buf. if diff GOOD
-        // 
-        
-// time1 : compose msg info
-		cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
+		
+        cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
 		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote
+        DEBUG_LOG("----- exp_size=%d (got from remote)-----\n", cb->remote_len);
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
 		cb->rdma_sq_wr.wr.next = NULL;
@@ -948,8 +954,10 @@ static void krping_test_server(struct krping_cb *cb)
 			inv.send_flags = IB_SEND_FENCE;
 		}
 
-	//DEBUG_LOG("ib_post_send>>>>\n");
-// time 2: send
+        if(!KRPING_EXP_DATA && cb->verbose)
+	        DEBUG_LOG("ib_post_send>>>>\n"); // be careful
+
+        // time 2: send
         rdtscll(ts_compose);
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
@@ -957,14 +965,17 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 		cb->rdma_sq_wr.wr.next = NULL;
-// time 3: send done
+
+        // time 3: send done
         rdtscll(ts_post);
-	//DEBUG_LOG("----- SERVER POSTED RDMA READ REQ AND WAITING FOR READ COMPLETE -----\n");
+        if(!KRPING_EXP_DATA && cb->verbose)
+	        DEBUG_LOG("----- SERVER POSTED RDMA READ REQ AND WAITING FOR READ COMPLETE -----\n"); // be careful
 
 		/* Wait for read completion */
 		wait_event_interruptible(cb->sem, 
 					 cb->state >= RDMA_READ_COMPLETE);
-// time 4: read(task) done
+    
+        // time 4: read(task) done
         rdtscll(ts_end);
 		if (cb->state != RDMA_READ_COMPLETE) {
 			printk(KERN_ERR PFX 
@@ -982,10 +993,11 @@ static void krping_test_server(struct krping_cb *cb)
 		DEBUG_LOG("\n\n\n");
 
 		/* Display data in recv buf */
-		if (cb->verbose)
-			printk(KERN_INFO PFX "server ping data: %s\n", 
-				cb->rdma_buf);
-        
+		if (cb->verbose) {
+			printk(KERN_INFO PFX "server ping data: %s\n", cb->rdma_buf);
+            msleep(3000);
+            EXP_DATA("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
+        }
         int str_len = strlen(cb->rdma_buf);
         DEBUG_LOG("server strlen()=%d\n", str_len);
         if (str_len/1024)
@@ -1717,7 +1729,8 @@ static void krping_test_client(struct krping_cb *cb)
         // set up  start_buf 
         // send start_dma_addr to remote
 
-	    DEBUG_LOG("\n"); msleep(3000);
+	    msleep(3000); // give time to prepare the buffer
+        DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
 	    
         int str_len = strlen(cb->start_buf);
         DEBUG_LOG("client strlen()=%d\n", str_len);
@@ -1745,7 +1758,7 @@ static void krping_test_client(struct krping_cb *cb)
 	    DEBUG_LOG("updated cb->send_buf.size = %d\n", cb->send_buf.size);
         DEBUG_LOG("@@@ (check) cb->start_dma_addr = 0x%llx Jack (only client)\n", cb->start_dma_addr); 
 
-	    DEBUG_LOG("\n\n\n"); msleep(3000);
+	    //DEBUG_LOG("\n\n\n"); msleep(3000);
 	    DEBUG_LOG("2. ib_post_send>>>>\n");
     
        
@@ -1768,7 +1781,7 @@ static void krping_test_client(struct krping_cb *cb)
 		}
        
 	    DEBUG_LOG("blocking wait......\n");
-        msleep(3000);
+        //msleep(3000);
 	    DEBUG_LOG("\n\n\n");
 		/* Wait for server to ACK */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_WRITE_ADV);
@@ -1805,8 +1818,11 @@ static void krping_test_client(struct krping_cb *cb)
 				break;
 			}
 
-		if (cb->verbose)
+		if (cb->verbose) {
 			printk(KERN_INFO PFX "ping data: %s\n", cb->rdma_buf);
+            msleep(3000);
+            DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
+        }
 #ifdef SLOW_KRPING
 		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
 #endif
@@ -2278,29 +2294,29 @@ int krping_doit(char *cmd)
 			cb->addr_str = optarg;
 			in4_pton(optarg, -1, cb->addr, -1, NULL);
 			cb->addr_type = AF_INET;
-			printk("ipaddr (%s)\n", optarg);
+			KRPRINT_INIT("ipaddr (%s)\n", optarg);
 			break;
 		case 'A':
 			cb->addr_str = optarg;
 			in6_pton(optarg, -1, cb->addr, -1, NULL);
 			cb->addr_type = AF_INET6;
-			printk("ipv6addr (%s)\n", optarg);
+			KRPRINT_INIT("ipv6addr (%s)\n", optarg);
 			break;
 		case 'p':
 			cb->port = htons(optint);
-			printk("port %d\n", (int)optint);
+			KRPRINT_INIT("port %d\n", (int)optint);
 			break;
 		case 'P':
 			cb->poll = 1;
-			printk("server\n");
+			KRPRINT_INIT("server\n");
 			break;
 		case 's':
 			cb->server = 1;
-			printk("server\n");
+			KRPRINT_INIT("server\n");
 			break;
 		case 'c':
 			cb->server = 0;
-			printk("client\n");
+			KRPRINT_INIT("client\n");
 			break;
 		case 'S':
 			cb->size = optint;
@@ -2308,19 +2324,19 @@ int krping_doit(char *cmd)
 		case 'C':
 			cb->count = optint;
 			if (cb->count < 0) {
-				printk(KERN_ERR PFX "Invalid count %d\n",
+				KRPRINT_INIT(KERN_ERR PFX "Invalid count %d\n",
 					cb->count);
 				ret = EINVAL;
 			} else
-				printk("count %d\n", (int) cb->count);
+				KRPRINT_INIT("count %d\n", (int) cb->count);
 			break;
 		case 'v':
 			cb->verbose++;
-			printk("verbose\n");
+			KRPRINT_INIT("verbose\n");
 			break;
 		case 'V':
 			cb->validate++;
-			printk("validate data\n");
+			KRPRINT_INIT("validate data\n");
 			break;
 		case 'l':
 			cb->wlat++;
@@ -2334,27 +2350,31 @@ int krping_doit(char *cmd)
 		case 'd':
 			cb->duplex++;
 			break;
+		case 'D':
+			debug=1;
+			KRPRINT_INIT("debug=1 (on)\n");
+			break;
 		case 'I':
 			cb->server_invalidate = 0; //Jack default=1
 			break;
 		case 'T':
 			cb->txdepth = optint;
-			printk("txdepth %d\n", (int) cb->txdepth);
+		    KRPRINT_INIT("txdepth %d\n", (int) cb->txdepth);
 			break;
 		case 'Z':
 			cb->local_dma_lkey = 1;
-			printk("using local dma lkey\n");
+			KRPRINT_INIT("using local dma lkey\n");
 			break;
 		case 'R':
 			cb->read_inv = 0; // Jack default=1
-			printk("using read-with-inv\n");
+			KRPRINT_INIT("using read-with-inv\n");
 			break;
 		case 'f':
 			cb->frtest = 1;
-			printk("fast-reg test!\n");
+			KRPRINT_INIT("fast-reg test!\n");
 			break;
 		default:
-			printk(KERN_ERR PFX "unknown opt %s\n", optarg);
+			KRPRINT_INIT(KERN_ERR PFX "unknown opt %s\n", optarg);
 			ret = -EINVAL;
 			break;
 		}
@@ -2367,7 +2387,7 @@ int krping_doit(char *cmd)
                cb->size, RPING_BUFSIZE);
         ret = EINVAL;
     } else
-        printk("size %d\n", (int)optint);
+        KRPRINT_INIT("size %d\n", (int)optint);
 	
     if (ret)
 		goto out;
@@ -2402,8 +2422,8 @@ int krping_doit(char *cmd)
 		printk(KERN_ERR PFX "rdma_create_id error %d\n", ret);
 		goto out;
 	}
-	DEBUG_LOG("created cm_id %p\n", cb->cm_id);
-	DEBUG_LOG("-------------- main init done -------------------\n\n");
+	KRPRINT_INIT("created cm_id %p\n", cb->cm_id);
+	KRPRINT_INIT("-------------- main init done -------------------\n\n");
 
 	if (cb->server)
 		krping_run_server(cb);
@@ -2502,7 +2522,7 @@ static struct file_operations krping_ops = {
 
 static int __init krping_init(void)
 {
-	DEBUG_LOG("------------------- krping_init -------------------\n");
+	KRPRINT_INIT("------------------- krping_init -------------------\n");
 	krping_proc = proc_create("krping", 0666, NULL, &krping_ops);
 	if (krping_proc == NULL) {
 		printk(KERN_ERR PFX "cannot create /proc/krping\n");
