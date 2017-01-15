@@ -1689,7 +1689,8 @@ static void krping_test_client(struct krping_cb *cb)
 	struct ib_send_wr *bad_wr;
 	unsigned char c;
     
-    int exp_size = cb->size;
+    //int exp_size = cb->size; // MAX
+    int exp_size = 4096; // MIN
 
 	start = 65;
 	for (ping = 0; !cb->count || ping < cb->count; ping++) {
