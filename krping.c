@@ -49,6 +49,11 @@
  *   4096 8192 16384 32768 65536 131072 262144 524288 1048576 2097152 4194304 8388608
  *   Add ",size=%d" in "..."
  *
+ *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,from=1048576,size=4194304" > /proc/krping
+ *
+ *   sudo echo "client,addr=192.168.69.127,port=9999,verbose,from=1048576,size=4194304" > /proc/krping
+ *   size = max rdma buf size (the size defaultly from 4k))
+ *   exp_data controed by hardcoded (I may export that later)
  */
 #include <linux/version.h>
 #include <linux/module.h>
@@ -86,7 +91,7 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 
 
 
-#define KRPING_EXP_LOG 1
+#define KRPING_EXP_LOG 0
 #define KRPING_EXP_DATA 1
 
 // for making sure data is good (not gaurantee it doesn't affect data)
@@ -99,6 +104,8 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping server");
 MODULE_LICENSE("Dual BSD/GPL");
+
+volatile unsigned long from_size = 4096;
 
 static const struct krping_option krping_opts[] = {
 	{"count", OPT_INT, 'C'},
@@ -121,6 +128,7 @@ static const struct krping_option krping_opts[] = {
  	{"local_dma_lkey", OPT_NOPARAM, 'Z'},
  	{"read_inv", OPT_NOPARAM, 'R'},
  	{"fr", OPT_NOPARAM, 'f'},
+ 	{"from", OPT_INT, 'F'},
 	{NULL, 0, 0}
 };
 
@@ -190,7 +198,8 @@ enum test_state {
 struct krping_rdma_info {
 	uint64_t buf;
 	uint32_t rkey;
-	uint32_t size;
+	//uint32_t size;
+	uint64_t size;
 };
 
 /*
@@ -258,7 +267,8 @@ struct krping_cb {
 	uint8_t addr_type;		/* ADDR_FAMILY - IPv4/V6 */
 	int verbose;			/* verbose logging */
 	int count;			/* ping count */
-	int size;			/* ping data size */
+	//int size;			/* ping data size */
+	unsigned long size;			/* ping data size */
 	int validate;			/* validate ping data */
 	int wlat;			/* run wlat test */
 	int rlat;			/* run rlat test */
@@ -987,27 +997,30 @@ static void krping_test_server(struct krping_cb *cb)
         
         //DEBUG_LOG("----- ts_start=%lu, ts_compose=%lu, ts_post=%lu, ts_end=%lu  ----\n",
         //                                     ts_start, ts_compose, ts_post, ts_end);
-        DEBUG_LOG("----- compose time=%lu, post time=%lu, end time=%lu  ----\n",
+		if (cb->verbose) {
+            EXP_DATA("----- compose time=%lu, post time=%lu, end time=%lu  ----\n",
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
+        }
 
 		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
 		DEBUG_LOG("\n\n\n");
 
 		/* Display data in recv buf */
-		if (cb->verbose) {
-			printk(KERN_INFO PFX "server ping data: %s\n", cb->rdma_buf);
+		if(KRPING_EXP_LOG) {
+            EXP_LOG(KERN_INFO PFX "server ping data: %s\n", cb->rdma_buf); // dangerous this is an endless task
             msleep(3000);
-            EXP_DATA("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
+            EXP_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
         }
-        int str_len = strlen(cb->rdma_buf);
-        DEBUG_LOG("server strlen()=%d\n", str_len);
-        if (str_len/1024)
-            DEBUG_LOG("server strlen()=%dK\n", str_len/1024);
-            //DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
-        if (str_len/1024/1024)
-            DEBUG_LOG("server strlen()=%dM\n", str_len/1024/1024);
-            //DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
-;
+        if(KRPING_EXP_DATA) {
+            int str_len = strlen(cb->rdma_buf);
+            EXP_DATA("server strlen()=%d\n", str_len);
+            if (str_len/1024)
+                EXP_DATA("server strlen()=%dK\n", str_len/1024);
+                //DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
+            if (str_len/1024/1024)
+                EXP_DATA("server strlen()=%dM\n", str_len/1024/1024);
+                //DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
+        }
 
 
 		/* Tell client to continue */
@@ -1703,7 +1716,7 @@ static void krping_test_client(struct krping_cb *cb)
 	unsigned char c;
     
     //int exp_size = cb->size; // MAX
-    int exp_size = 4096; // MIN
+    unsigned long exp_size = from_size; // MIN
 
 	start = 65;
 	for (ping = 0; !cb->count || ping < cb->count; ping++) {
@@ -1732,16 +1745,17 @@ static void krping_test_client(struct krping_cb *cb)
 
 	    msleep(3000); // give time to prepare the buffer
         DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
-	    
-        int str_len = strlen(cb->start_buf);
-        DEBUG_LOG("client strlen()=%d\n", str_len);
-        if (str_len/1024)
-	        DEBUG_LOG("client strlen()=%dK\n", str_len/1024);
-	        //DEBUG_LOG("client strlen()=%.1lfK\n", (float)((float)str_len/(float)1024));
-        if (str_len/1024/1024)
-	        DEBUG_LOG("client strlen()=%dM\n", str_len/1024/1024);
-	        //DEBUG_LOG("client strlen()=%fM\n", ((float)(str_len)/1024/1024));
-
+	   
+        if(KRPING_EXP_DATA){
+            int str_len = strlen(cb->start_buf);
+            EXP_DATA("client strlen()=%d\n", str_len);
+            if (str_len/1024)
+                EXP_DATA("client strlen()=%dK\n", str_len/1024);
+                //DEBUG_LOG("client strlen()=%.1lfK\n", (float)((float)str_len/(float)1024));
+            if (str_len/1024/1024)
+                EXP_DATA("client strlen()=%dM\n", str_len/1024/1024);
+                //DEBUG_LOG("client strlen()=%fM\n", ((float)(str_len)/1024/1024));
+        }
 
         //DEBUG_LOG("%s(): cb->start_dma_addr = 0x%d then upsate rkey\n", cb->start_dma_addr);
         //if (&cb->start_dma_addr!=NULL)
@@ -1820,9 +1834,12 @@ static void krping_test_client(struct krping_cb *cb)
 			}
 
 		if (cb->verbose) {
-			printk(KERN_INFO PFX "ping data: %s\n", cb->rdma_buf);
+        }
+        
+        if(KRPING_EXP_LOG){
+            EXP_LOG(KERN_INFO PFX "ping data: %s\n", cb->rdma_buf);
             msleep(3000);
-            DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
+            EXP_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
         }
 #ifdef SLOW_KRPING
 		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
@@ -2321,6 +2338,7 @@ int krping_doit(char *cmd)
 			break;
 		case 'S':
 			cb->size = optint;
+			KRPRINT_INIT("from_size to size = %d\n", cb->size);
 			break;
 		case 'C':
 			cb->count = optint;
@@ -2373,6 +2391,10 @@ int krping_doit(char *cmd)
 		case 'f':
 			cb->frtest = 1;
 			KRPRINT_INIT("fast-reg test!\n");
+			break;
+		case 'F':
+			from_size = optint;
+			KRPRINT_INIT("from_size = %d to size\n", from_size);
 			break;
 		default:
 			KRPRINT_INIT(KERN_ERR PFX "unknown opt %s\n", optarg);
