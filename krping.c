@@ -972,10 +972,13 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
         
-        DEBUG_LOG("----- ts_start=%lu, ts_compose=%lu, ts_post=%lu, ts_end=%lu  ----\n",
-                                             ts_start, ts_compose, ts_post, ts_end);
+        //DEBUG_LOG("----- ts_start=%lu, ts_compose=%lu, ts_post=%lu, ts_end=%lu  ----\n",
+        //                                     ts_start, ts_compose, ts_post, ts_end);
+        DEBUG_LOG("----- compose time=%lu, post time=%lu, end time=%lu  ----\n",
+                                    ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
 
 		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
+		DEBUG_LOG("\n\n\n");
 
 		/* Display data in recv buf */
 		if (cb->verbose)
@@ -1677,10 +1680,10 @@ static void krping_test_client(struct krping_cb *cb)
 	start = 65;
 	for (ping = 0; !cb->count || ping < cb->count; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
-
+ 
 		/* Put some ascii text in the buffer. */
-		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf
-		for (i = cc, c = start; i < cb->size; i++) {
+		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf 
+		for (i = cc, c = start; i < cb->size; i++) { // Jack need to change
 			cb->start_buf[i] = c;
 			c++;
 			if (c > 122)
@@ -1691,7 +1694,16 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		cb->start_buf[cb->size - 1] = 0;
 
+
 	    DEBUG_LOG("\n"); msleep(3000);
+	    
+        int str_len = strlen(cb->start_buf);
+        DEBUG_LOG("strlen()=%d\n", str_len);
+        if (str_len/1024)
+	        DEBUG_LOG("strlen()=%dK\n", str_len/1024);
+        if (str_len/1024/1024)
+	        DEBUG_LOG("strlen()=%dM\n", str_len/1024/1024);
+
         //DEBUG_LOG("%s(): cb->start_dma_addr = 0x%d then upsate rkey\n", cb->start_dma_addr);
         //if (&cb->start_dma_addr!=NULL)
         //    DEBUG_LOG("%s(): cb->start_dma_addr = 0x%llx then upsate rkey\n", cb->start_dma_addr);
