@@ -56,7 +56,7 @@
  *   exp_data controed by hardcoded (I may export that later)
  *
  *
- *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,from=4069,size=8388608" > /proc/krping
+ *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,count=100,from=4069,size=8388608" > /proc/krping
  */
 #include <linux/version.h>
 #include <linux/module.h>
@@ -1752,9 +1752,11 @@ static void krping_test_client(struct krping_cb *cb)
     unsigned long exp_size = from_size; // MIN
 
 	start = 65;
-	for (ping = 0; !cb->count || ping < cb->count; ping++) {
+	KRPRINT_INIT("cb->count=%d\n", cb->count);
+while (exp_size <= cb->size){
+        
+    for (ping = 0; !cb->count || ping < cb->count; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
- 
         
         if (exp_size > cb->size) // Jack terminates it
             break; //
@@ -1779,11 +1781,11 @@ static void krping_test_client(struct krping_cb *cb)
         // set up  start_buf 
         // send start_dma_addr to remote
 
-	    msleep(3000); // give time to prepare the buffer
-        DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
 	  
         
+        DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
         if(KRPING_EXP_DATA){
+	        msleep(3000); // give time to prepare the buffer
             int str_len = strlen(cb->start_buf);
             //EXP_DATA("client strlen()=%d\n", str_len);
             if (str_len/1024)
@@ -1845,7 +1847,8 @@ static void krping_test_client(struct krping_cb *cb)
 			break;  // break
 		}
 
-        DEBUG_LOG("\n\n\n"); msleep(5000);
+        DEBUG_LOG("\n\n\n"); 
+        //msleep(5000);
 		krping_format_send(cb, cb->rdma_dma_addr);
 	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
@@ -1882,9 +1885,16 @@ static void krping_test_client(struct krping_cb *cb)
 #ifdef SLOW_KRPING
 		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
 #endif
-	    exp_size *= 2;
     }
-    printk("\nDONE\n\n");
+	
+    EXP_DATA("===========================================================\n"); 
+    EXP_DATA("===========================================================\n"); 
+    EXP_DATA("===========================================================\n"); 
+    EXP_DATA("===========================================================\n"); 
+    EXP_DATA("===========================================================\n"); 
+    exp_size *= 2;
+}
+printk("\nDONE\n\n");
 }
 
 static void krping_rlat_test_client(struct krping_cb *cb)
