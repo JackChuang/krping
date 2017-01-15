@@ -872,8 +872,9 @@ static void krping_test_server(struct krping_cb *cb)
 {
 	struct ib_send_wr *bad_wr, inv;
     //struct ib_recv_wr *bad_wr2;
-	int ret;
+    int ret;
 
+    DEBUG_LOG("\n\n\nTEST server: %s()\n\n\n", __func__);
 	while (1) {
 	    // Jack
         //DEBUG_LOG("ib_post_recv<<<<\n");
@@ -985,7 +986,7 @@ static void krping_test_server(struct krping_cb *cb)
 			printk(KERN_INFO PFX "server ping data: %s\n", 
 				cb->rdma_buf);
         
-        int str_len = strlen(cb->start_buf);
+        int str_len = strlen(cb->rdma_buf);
         DEBUG_LOG("server strlen()=%d\n", str_len);
         if (str_len/1024)
             DEBUG_LOG("server strlen()=%dK\n", str_len/1024);
@@ -1429,6 +1430,8 @@ static void krping_rlat_test_server(struct krping_cb *cb)
 	struct ib_send_wr *bad_wr;
 	struct ib_wc wc;
 	int ret;
+    
+    DEBUG_LOG("TEST server: %s()\n", __func__);
 
 	/* Spin waiting for client's Start STAG/TO/Len */
 	while (cb->state < RDMA_READ_ADV) {
@@ -1463,7 +1466,9 @@ static void krping_wlat_test_server(struct krping_cb *cb)
 	struct ib_wc wc;
 	int ret;
 
-	/* Spin waiting for client's Start STAG/TO/Len */
+    DEBUG_LOG("TEST server: %s()\n", __func__);
+	
+    /* Spin waiting for client's Start STAG/TO/Len */
 	while (cb->state < RDMA_READ_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
@@ -1496,6 +1501,8 @@ static void krping_bw_test_server(struct krping_cb *cb)
 	struct ib_send_wr *bad_wr;
 	struct ib_wc wc;
 	int ret;
+    
+    DEBUG_LOG("TEST server: %s()\n", __func__);
 
 	/* Spin waiting for client's Start STAG/TO/Len */
 	while (cb->state < RDMA_READ_ADV) {
@@ -1604,6 +1611,7 @@ static int krping_bind_server(struct krping_cb *cb)
 	DEBUG_LOG("rdma_bind_addr successful\n");
 
 	DEBUG_LOG("rdma_listen\n");
+	DEBUG_LOG("\n\n\n");
 	ret = rdma_listen(cb->cm_id, 3);
 	if (ret) {
 		printk(KERN_ERR PFX "rdma_listen failed: %d\n", ret);
@@ -1657,22 +1665,15 @@ static void krping_run_server(struct krping_cb *cb)
 		goto err2;
 	}
 
-	if (cb->wlat) {
-        DEBUG_LOG("TEST server: krping_wlat_test_server()\n");
+	if (cb->wlat)
 		krping_wlat_test_server(cb);
-    }
-	else if (cb->rlat) {
-        DEBUG_LOG("TEST server: krping_rlat_test_server()\n");
+	else if (cb->rlat)
 		krping_rlat_test_server(cb);
-    }
-	else if (cb->bw) {
-        DEBUG_LOG("TEST server: krping_bw_test_server()\n");
+	else if (cb->bw)
 		krping_bw_test_server(cb);
-    }
-	else {
-        DEBUG_LOG("\n\n\n\n\n\n\nTEST server: krping_test_server()\n");
+	else
 		krping_test_server(cb);
-    }
+
 	rdma_disconnect(cb->child_cm_id);
 err2:
 	krping_free_buffers(cb);
@@ -1687,14 +1688,19 @@ static void krping_test_client(struct krping_cb *cb)
 	int ping, start, cc, i, ret;
 	struct ib_send_wr *bad_wr;
 	unsigned char c;
+    
+    int exp_size = cb->size;
 
 	start = 65;
 	for (ping = 0; !cb->count || ping < cb->count; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
  
-		/* Put some ascii text in the buffer. */
+        
+
+		/* Put some ascii text in the dma buffer. */
 		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf 
-		for (i = cc, c = start; i < cb->size; i++) { // Jack need to change
+		//for (i = cc, c = start; i < cb->size; i++) { // Jack need to change
+		for (i = cc, c = start; i < exp_size; i++) {
 			cb->start_buf[i] = c;
 			c++;
 			if (c > 122)
@@ -1703,8 +1709,12 @@ static void krping_test_client(struct krping_cb *cb)
 		start++;
 		if (start > 122)
 			start = 65;
-		cb->start_buf[cb->size - 1] = 0;
-
+		//cb->start_buf[cb->size - 1] = 0; // Jack need to change
+		cb->start_buf[exp_size - 1] = 0;
+        
+        // since this start_dma_addr = dma_map_single(cb->start_buf); 
+        // set up  start_buf 
+        // send start_dma_addr to remote
 
 	    DEBUG_LOG("\n"); msleep(3000);
 	    
@@ -1788,7 +1798,8 @@ static void krping_test_client(struct krping_cb *cb)
 		}
 
 		if (cb->validate)
-			if (memcmp(cb->start_buf, cb->rdma_buf, cb->size)) {
+			//if (memcmp(cb->start_buf, cb->rdma_buf, cb->size)) { // Jack: need to change
+			if (memcmp(cb->start_buf, cb->rdma_buf, exp_size)) {
 				printk(KERN_ERR PFX "data mismatch!\n");
 				break;
 			}
@@ -1798,7 +1809,8 @@ static void krping_test_client(struct krping_cb *cb)
 #ifdef SLOW_KRPING
 		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
 #endif
-	}
+	    exp_size *= 2;
+    }
 }
 
 static void krping_rlat_test_client(struct krping_cb *cb)
@@ -2390,7 +2402,7 @@ int krping_doit(char *cmd)
 		goto out;
 	}
 	DEBUG_LOG("created cm_id %p\n", cb->cm_id);
-	DEBUG_LOG("-------------- main init done -------------------\n\n\n\n");
+	DEBUG_LOG("-------------- main init done -------------------\n\n");
 
 	if (cb->server)
 		krping_run_server(cb);
@@ -2489,7 +2501,7 @@ static struct file_operations krping_ops = {
 
 static int __init krping_init(void)
 {
-	DEBUG_LOG("krping_init\n");
+	DEBUG_LOG("------------------- krping_init -------------------\n");
 	krping_proc = proc_create("krping", 0666, NULL, &krping_ops);
 	if (krping_proc == NULL) {
 		printk(KERN_ERR PFX "cannot create /proc/krping\n");
