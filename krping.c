@@ -1001,13 +1001,7 @@ static void krping_test_server(struct krping_cb *cb)
 		}
 
 
-
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
 		DEBUG_LOG("\n\n\n");
 
@@ -1030,7 +1024,6 @@ static void krping_test_server(struct krping_cb *cb)
             //EXP_DATA("\n");
             
         }
-
 
 		/* Tell client to continue */
 		if (cb->server && cb->server_invalidate) {
@@ -1055,9 +1048,6 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 		DEBUG_LOG("----- SERVER RECEIVED SINK (3things) ADV -----\n");
-
-
-
 
 
 
@@ -1109,22 +1099,13 @@ static void krping_test_server(struct krping_cb *cb)
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            //EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n",
-            //                        ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
-            EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n", 
-                                    timespec_to_ns(ts_compose-ts_start), 
-                                    timespec_to_ns(ts_post-ts_start), 
-                                    timespec_to_ns(ts_end-ts_start));
-
+            EXP_DATA("RD: compose time=%lu, post time=%lu, end time=%lu (cpu ticks)\n",
+                                    ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
         // wr !!
         if (cb->verbose) {
-            //EXP_DATA("----- wr compose time=%lu, post time=%lu, end time=%lu  ----\n",
-            //                ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
-            EXP_DATA("----- wr compose time=%lu, post time=%lu, end time=%lu  ----\n",
-                            timespec_to_ns(ts_wr_compose-ts_wr_start), 
-                            timespec_to_ns(ts_wr_post-ts_wr_start), 
-                            timespec_to_ns(ts_wr_end-ts_wr_start));
+            EXP_DATA("WR: compose time=%lu, post time=%lu, end time=%lu (cpu ticks)\n",
+                            ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
         
@@ -1511,6 +1492,9 @@ static void bw_test(struct krping_cb *cb)
 	kfree(last_poll_cycles_start);
 }
 
+
+
+/*
 static void krping_rlat_test_server(struct krping_cb *cb)
 {
 	struct ib_send_wr *bad_wr;
@@ -1519,12 +1503,12 @@ static void krping_rlat_test_server(struct krping_cb *cb)
     
     DEBUG_LOG("TEST server: %s()\n", __func__);
 
-	/* Spin waiting for client's Start STAG/TO/Len */
+	// Spin waiting for client's Start STAG/TO/Len //
 	while (cb->state < RDMA_READ_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
 
-	/* Send STAG/TO/Len to client */
+	// Send STAG/TO/Len to client //
 	krping_format_send(cb, cb->start_dma_addr);
 	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 	if (ret) {
@@ -1532,7 +1516,7 @@ static void krping_rlat_test_server(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for send completion */
+	// Spin waiting for send completion //
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
 	if (ret < 0) {
 		printk(KERN_ERR PFX "poll error %d\n", ret);
@@ -1554,12 +1538,12 @@ static void krping_wlat_test_server(struct krping_cb *cb)
 
     DEBUG_LOG("TEST server: %s()\n", __func__);
 	
-    /* Spin waiting for client's Start STAG/TO/Len */
+    // Spin waiting for client's Start STAG/TO/Len //
 	while (cb->state < RDMA_READ_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
 
-	/* Send STAG/TO/Len to client */
+	// Send STAG/TO/Len to client //
 	krping_format_send(cb, cb->start_dma_addr);
 	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 	if (ret) {
@@ -1567,7 +1551,7 @@ static void krping_wlat_test_server(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for send completion */
+	// Spin waiting for send completion //
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
 	if (ret < 0) {
 		printk(KERN_ERR PFX "poll error %d\n", ret);
@@ -1590,12 +1574,12 @@ static void krping_bw_test_server(struct krping_cb *cb)
     
     DEBUG_LOG("TEST server: %s()\n", __func__);
 
-	/* Spin waiting for client's Start STAG/TO/Len */
+	// Spin waiting for client's Start STAG/TO/Len //
 	while (cb->state < RDMA_READ_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
 
-	/* Send STAG/TO/Len to client */
+	// Send STAG/TO/Len to client //
 	krping_format_send(cb, cb->start_dma_addr);
 	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
 	if (ret) {
@@ -1603,7 +1587,7 @@ static void krping_bw_test_server(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for send completion */
+	// Spin waiting for send completion //
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
 	if (ret < 0) {
 		printk(KERN_ERR PFX "poll error %d\n", ret);
@@ -1618,7 +1602,7 @@ static void krping_bw_test_server(struct krping_cb *cb)
 		bw_test(cb);
 	wait_event_interruptible(cb->sem, cb->state == ERROR);
 }
-
+*/
 static int reg_supported(struct ib_device *dev)
 {
 	u64 needed_flags = IB_DEVICE_MEM_MGT_EXTENSIONS |
@@ -1752,11 +1736,14 @@ static void krping_run_server(struct krping_cb *cb)
 	}
 
 	if (cb->wlat)
-		krping_wlat_test_server(cb);
+        printk("not supported\n");
+		//krping_wlat_test_server(cb);
 	else if (cb->rlat)
-		krping_rlat_test_server(cb);
+        printk("not supported\n");
+		//krping_rlat_test_server(cb);
 	else if (cb->bw)
-		krping_bw_test_server(cb);
+        printk("not supported\n");
+		//krping_bw_test_server(cb);
 	else
 		krping_test_server(cb);
 
@@ -1924,15 +1911,17 @@ while (exp_size <= cb->size){
 printk("\nDONE\n\n");
 }
 
+/*
 static void krping_rlat_test_client(struct krping_cb *cb)
 {
 	struct ib_send_wr *bad_wr;
 	struct ib_wc wc;
 	int ret;
+    DEBUG_LOG("TEST client: %s()\n", __func__);
 
 	cb->state = RDMA_READ_ADV;
 
-	/* Send STAG/TO/Len to client */
+	// Send STAG/TO/Len to client //
 	krping_format_send(cb, cb->start_dma_addr);
 	if (cb->state == ERROR) {
 		printk(KERN_ERR PFX "krping_format_send failed\n");
@@ -1944,7 +1933,7 @@ static void krping_rlat_test_client(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for send completion */
+	// Spin waiting for send completion //
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
 	if (ret < 0) {
 		printk(KERN_ERR PFX "poll error %d\n", ret);
@@ -1955,7 +1944,7 @@ static void krping_rlat_test_client(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for server's Start STAG/TO/Len */
+	// Spin waiting for server's Start STAG/TO/Len //
 	while (cb->state < RDMA_WRITE_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
@@ -2021,8 +2010,9 @@ static void krping_wlat_test_client(struct krping_cb *cb)
 	int ret;
 
 	cb->state = RDMA_READ_ADV;
+    DEBUG_LOG("TEST client: %s()\n", __func__);
 
-	/* Send STAG/TO/Len to client */
+	// Send STAG/TO/Len to client //
 	krping_format_send(cb, cb->start_dma_addr);
 	if (cb->state == ERROR) {
 		printk(KERN_ERR PFX "krping_format_send failed\n");
@@ -2034,7 +2024,7 @@ static void krping_wlat_test_client(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for send completion */
+	// Spin waiting for send completion //
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
 	if (ret < 0) {
 		printk(KERN_ERR PFX "poll error %d\n", ret);
@@ -2045,7 +2035,7 @@ static void krping_wlat_test_client(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for server's Start STAG/TO/Len */
+	// Spin waiting for server's Start STAG/TO/Len //
 	while (cb->state < RDMA_WRITE_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
@@ -2059,9 +2049,10 @@ static void krping_bw_test_client(struct krping_cb *cb)
 	struct ib_wc wc;
 	int ret;
 
+    DEBUG_LOG("TEST client: %s()\n", __func__);
 	cb->state = RDMA_READ_ADV;
 
-	/* Send STAG/TO/Len to client */
+	// Send STAG/TO/Len to client //
 	krping_format_send(cb, cb->start_dma_addr); // (only client) update rkey (send buf)
 	if (cb->state == ERROR) {
 		printk(KERN_ERR PFX "krping_format_send failed\n");
@@ -2074,7 +2065,7 @@ static void krping_bw_test_client(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for send completion */
+	// Spin waiting for send completion //
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
 	if (ret < 0) {
 		printk(KERN_ERR PFX "poll error %d\n", ret);
@@ -2085,13 +2076,14 @@ static void krping_bw_test_client(struct krping_cb *cb)
 		return;
 	}
 
-	/* Spin waiting for server's Start STAG/TO/Len */
+	// Spin waiting for server's Start STAG/TO/Len //
 	while (cb->state < RDMA_WRITE_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
 
 	bw_test(cb);
 }
+*/
 
 /*
  * Manual qp flush test
@@ -2332,26 +2324,21 @@ static void krping_run_client(struct krping_cb *cb)
 
     DEBUG_LOG("@@@ (check3) cb->start_dma_addr = 0x%llx Jack (only client)\n", cb->start_dma_addr);
 
-	if (cb->wlat) {
-		DEBUG_LOG("TEST client: krping_wlat_test_client()\n");
-		krping_wlat_test_client(cb);
-    }
-	else if (cb->rlat) {
-		DEBUG_LOG("TEST client: krping_rlat_test_client()\n");
-		krping_rlat_test_client(cb);
-    }
-	else if (cb->bw) {
-		DEBUG_LOG("TEST client: krping_bw_test_client()\n");
-		krping_bw_test_client(cb);
-    }
-	else if (cb->frtest) {
-		DEBUG_LOG("TEST client: krping_fr_test()\n");
-		krping_fr_test(cb);
-    }
-	else {
-		DEBUG_LOG("\n\n\n\n\nTEST client: krping_test_client()\n");
+	if (cb->wlat) 
+        printk("not supported\n");
+        //krping_wlat_test_client(cb);
+	else if (cb->rlat) 
+        printk("not supported\n");
+		//krping_rlat_test_client(cb);
+	else if (cb->bw) 
+        printk("not supported\n");
+		//krping_bw_test_client(cb);
+	else if (cb->frtest) 
+        printk("not supported\n");
+		//krping_fr_test(cb);
+	else 
 		krping_test_client(cb);
-    }
+
 	rdma_disconnect(cb->cm_id);
 err2:
 	krping_free_buffers(cb);
@@ -2522,6 +2509,10 @@ int krping_doit(char *cmd)
 		goto out;
 	}
 	KRPRINT_INIT("created cm_id %p\n", cb->cm_id);
+
+
+	KRPRINT_INIT("CPU freq. = 2.10GHz = 2.1*1024*1024*1024 = 2254857830.4\n");
+	KRPRINT_INIT("1 CPU tick = 1/2.10GHz = 0.44348694 ns\n");
 	KRPRINT_INIT("-------------- main init done -------------------\n\n");
 
 	if (cb->server)
