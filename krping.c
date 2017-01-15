@@ -56,7 +56,7 @@
  *   exp_data controed by hardcoded (I may export that later)
  *
  *
- *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,count=100,from=4069,size=8388608" > /proc/krping
+ *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,count=100,from=4069,size=4194304" > /proc/krping
  */
 #include <linux/version.h>
 #include <linux/module.h>
@@ -109,6 +109,8 @@ MODULE_DESCRIPTION("RDMA ping server");
 MODULE_LICENSE("Dual BSD/GPL");
 
 volatile unsigned long from_size = 4096;
+volatile static int str_len;
+volatile static int old_str_len;
 
 static const struct krping_option krping_opts[] = {
 	{"count", OPT_INT, 'C'},
@@ -998,12 +1000,6 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
         
-        //DEBUG_LOG("----- ts_start=%lu, ts_compose=%lu, ts_post=%lu, ts_end=%lu  ----\n",
-        //                                     ts_start, ts_compose, ts_post, ts_end);
-		if (cb->verbose) {
-            EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n",
-                                    ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
-        }
 
 		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
 		DEBUG_LOG("\n\n\n");
@@ -1014,8 +1010,9 @@ static void krping_test_server(struct krping_cb *cb)
             msleep(3000);
             EXP_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
         }
+        
+        str_len = strlen(cb->rdma_buf);
         if(KRPING_EXP_DATA) {
-            int str_len = strlen(cb->rdma_buf);
             //EXP_DATA("server strlen()=%d\n", str_len);
             if (str_len/1024)
                 EXP_DATA("server strlen()=%dK\n", str_len/1024);
@@ -1024,6 +1021,7 @@ static void krping_test_server(struct krping_cb *cb)
                 //EXP_DATA("server strlen()=%dM\n", str_len/1024/1024);
                 //////DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
             //EXP_DATA("\n");
+            
         }
 
 
@@ -1102,12 +1100,27 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // rd !!
+		if (cb->verbose) {
+            EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n",
+                                    ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
+        }
+        // wr !!
         if (cb->verbose) {
             EXP_DATA("----- wr compose time=%lu, post time=%lu, end time=%lu  ----\n",
                             ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
         
+        if (old_str_len!=str_len) {
+            EXP_DATA("===========================================================\n");
+            EXP_DATA("===========================================================\n");
+            EXP_DATA("===========================================================\n");
+            EXP_DATA("===========================================================\n");
+            EXP_DATA("===========================================================\n");
+        }
+        old_str_len = str_len;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
