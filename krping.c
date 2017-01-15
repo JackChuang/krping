@@ -984,6 +984,17 @@ static void krping_test_server(struct krping_cb *cb)
 		if (cb->verbose)
 			printk(KERN_INFO PFX "server ping data: %s\n", 
 				cb->rdma_buf);
+        
+        int str_len = strlen(cb->start_buf);
+        DEBUG_LOG("server strlen()=%d\n", str_len);
+        if (str_len/1024)
+            DEBUG_LOG("server strlen()=%dK\n", str_len/1024);
+            //DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
+        if (str_len/1024/1024)
+            DEBUG_LOG("server strlen()=%dM\n", str_len/1024/1024);
+            //DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
+;
+
 
 		/* Tell client to continue */
 		if (cb->server && cb->server_invalidate) {
@@ -1698,11 +1709,14 @@ static void krping_test_client(struct krping_cb *cb)
 	    DEBUG_LOG("\n"); msleep(3000);
 	    
         int str_len = strlen(cb->start_buf);
-        DEBUG_LOG("strlen()=%d\n", str_len);
+        DEBUG_LOG("client strlen()=%d\n", str_len);
         if (str_len/1024)
-	        DEBUG_LOG("strlen()=%dK\n", str_len/1024);
+	        DEBUG_LOG("client strlen()=%dK\n", str_len/1024);
+	        //DEBUG_LOG("client strlen()=%.1lfK\n", (float)((float)str_len/(float)1024));
         if (str_len/1024/1024)
-	        DEBUG_LOG("strlen()=%dM\n", str_len/1024/1024);
+	        DEBUG_LOG("client strlen()=%dM\n", str_len/1024/1024);
+	        //DEBUG_LOG("client strlen()=%fM\n", ((float)(str_len)/1024/1024));
+
 
         //DEBUG_LOG("%s(): cb->start_dma_addr = 0x%d then upsate rkey\n", cb->start_dma_addr);
         //if (&cb->start_dma_addr!=NULL)
@@ -2376,6 +2390,7 @@ int krping_doit(char *cmd)
 		goto out;
 	}
 	DEBUG_LOG("created cm_id %p\n", cb->cm_id);
+	DEBUG_LOG("-------------- main init done -------------------\n\n\n\n");
 
 	if (cb->server)
 		krping_run_server(cb);
