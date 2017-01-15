@@ -54,6 +54,9 @@
  *   sudo echo "client,addr=192.168.69.127,port=9999,verbose,from=1048576,size=4194304" > /proc/krping
  *   size = max rdma buf size (the size defaultly from 4k))
  *   exp_data controed by hardcoded (I may export that later)
+ *
+ *
+ *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,from=4069,size=8388608" > /proc/krping
  */
 #include <linux/version.h>
 #include <linux/module.h>
@@ -943,7 +946,7 @@ static void krping_test_server(struct krping_cb *cb)
         cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
 		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote
-        EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len);
+        //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
 		cb->rdma_sq_wr.wr.next = NULL;
@@ -1753,7 +1756,9 @@ static void krping_test_client(struct krping_cb *cb)
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
  
         
-
+        if (exp_size > cb->size) // Jack terminates it
+            break; //
+        
 		/* Put some ascii text in the dma buffer. */
 		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf 
 		//for (i = cc, c = start; i < cb->size; i++) { // Jack need to change
@@ -1768,14 +1773,16 @@ static void krping_test_client(struct krping_cb *cb)
 			start = 65;
 		//cb->start_buf[cb->size - 1] = 0; // Jack need to change
 		cb->start_buf[exp_size - 1] = 0;
-        
+       
+
         // since this start_dma_addr = dma_map_single(cb->start_buf); 
         // set up  start_buf 
         // send start_dma_addr to remote
 
 	    msleep(3000); // give time to prepare the buffer
         DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
-	   
+	  
+        
         if(KRPING_EXP_DATA){
             int str_len = strlen(cb->start_buf);
             //EXP_DATA("client strlen()=%d\n", str_len);
@@ -1877,6 +1884,7 @@ static void krping_test_client(struct krping_cb *cb)
 #endif
 	    exp_size *= 2;
     }
+    printk("\nDONE\n\n");
 }
 
 static void krping_rlat_test_client(struct krping_cb *cb)
