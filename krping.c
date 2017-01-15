@@ -936,14 +936,14 @@ static void krping_test_server(struct krping_cb *cb)
 // (...measuring...)
 // rdtscll(ts_end);
         
-        unsigned long ts_start, ts_compose, ts_post, ts_end;
+        volatile unsigned long ts_start, ts_compose, ts_post, ts_end;
         // time1 : compose msg info
         rdtscll(ts_start);
 		
         cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
 		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote
-        EXP_LOG("----- exp_size=%d (got from remote)-----\n", cb->remote_len);
+        EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len);
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
 		cb->rdma_sq_wr.wr.next = NULL;
@@ -1013,7 +1013,7 @@ static void krping_test_server(struct krping_cb *cb)
         }
         if(KRPING_EXP_DATA) {
             int str_len = strlen(cb->rdma_buf);
-            EXP_DATA("server strlen()=%d\n", str_len);
+            //EXP_DATA("server strlen()=%d\n", str_len);
             if (str_len/1024)
                 EXP_DATA("server strlen()=%dK\n", str_len/1024);
                 //////DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
@@ -1055,7 +1055,7 @@ static void krping_test_server(struct krping_cb *cb)
 
 
 ///////////////////////////////////////////////////////////////////////
-        unsigned long ts_wr_start, ts_wr_compose, ts_wr_post, ts_wr_end;
+        volatile unsigned long ts_wr_start, ts_wr_compose, ts_wr_post, ts_wr_end;
         // time1 : compose msg info
         rdtscll(ts_wr_start);
 
