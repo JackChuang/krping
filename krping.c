@@ -546,7 +546,7 @@ static void krping_setup_wr(struct krping_cb *cb) // set up sgl, used for rdma
 	//cb->recv_sgl.addr = cb->recv_buf.buf; // wrong: canno use kernel addr
 	cb->recv_sgl.length = sizeof cb->recv_buf;  //sizeof cb->recv_buf(16)
                                                 //sizeof cb->recv_buf.buf(8)
-	printk("sizeof cb->recv_buf=%d, sizeof cb->recv_buf.buf=%d\n", sizeof cb->recv_buf, sizeof cb->recv_buf.buf);
+	DEBUG_LOG("sizeof cb->recv_buf=%d, sizeof cb->recv_buf.buf=%d\n", sizeof cb->recv_buf, sizeof cb->recv_buf.buf);
     cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
     cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
@@ -943,7 +943,7 @@ static void krping_test_server(struct krping_cb *cb)
         cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
 		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote
-        DEBUG_LOG("----- exp_size=%d (got from remote)-----\n", cb->remote_len);
+        EXP_LOG("----- exp_size=%d (got from remote)-----\n", cb->remote_len);
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
 		cb->rdma_sq_wr.wr.next = NULL;
@@ -998,7 +998,7 @@ static void krping_test_server(struct krping_cb *cb)
         //DEBUG_LOG("----- ts_start=%lu, ts_compose=%lu, ts_post=%lu, ts_end=%lu  ----\n",
         //                                     ts_start, ts_compose, ts_post, ts_end);
 		if (cb->verbose) {
-            EXP_DATA("----- compose time=%lu, post time=%lu, end time=%lu  ----\n",
+            EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n",
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
 
@@ -1016,10 +1016,11 @@ static void krping_test_server(struct krping_cb *cb)
             EXP_DATA("server strlen()=%d\n", str_len);
             if (str_len/1024)
                 EXP_DATA("server strlen()=%dK\n", str_len/1024);
-                //DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
-            if (str_len/1024/1024)
-                EXP_DATA("server strlen()=%dM\n", str_len/1024/1024);
-                //DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
+                //////DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
+            //if (str_len/1024/1024)
+                //EXP_DATA("server strlen()=%dM\n", str_len/1024/1024);
+                //////DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
+            //EXP_DATA("\n");
         }
 
 
@@ -1047,6 +1048,17 @@ static void krping_test_server(struct krping_cb *cb)
 		}
 		DEBUG_LOG("----- SERVER RECEIVED SINK (3things) ADV -----\n");
 
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////
+        unsigned long ts_wr_start, ts_wr_compose, ts_wr_post, ts_wr_end;
+        // time1 : compose msg info
+        rdtscll(ts_wr_start);
+
 		/* RDMA Write echo data */
 		cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;  //WRITE
 		cb->rdma_sq_wr.rkey = cb->remote_rkey;
@@ -1063,21 +1075,39 @@ static void krping_test_server(struct krping_cb *cb)
 			  cb->rdma_sq_wr.wr.sg_list->length);
 
 	    DEBUG_LOG("ib_post_send>>>>\n");
+        
+        // time 2: send
+        rdtscll(ts_wr_compose);
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
+        // time 3: send done
+        rdtscll(ts_wr_post);
 
 		/* Wait for completion */
 		ret = wait_event_interruptible(cb->sem, cb->state >= 
 							 RDMA_WRITE_COMPLETE);
-		if (cb->state != RDMA_WRITE_COMPLETE) {
+        // time 4: read(task) done
+        rdtscll(ts_wr_end);
+		
+        if (cb->state != RDMA_WRITE_COMPLETE) {
 			printk(KERN_ERR PFX 
 			       "wait for RDMA_WRITE_COMPLETE state %d\n",
 			       cb->state);
 			break;
 		}
+
+        if (cb->verbose) {
+            EXP_DATA("----- wr compose time=%lu, post time=%lu, end time=%lu  ----\n",
+                            ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
+            EXP_DATA("\n");
+        }
+        
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		DEBUG_LOG("server rdma write complete \n");
 
 		cb->state = CONNECTED;
@@ -1748,13 +1778,14 @@ static void krping_test_client(struct krping_cb *cb)
 	   
         if(KRPING_EXP_DATA){
             int str_len = strlen(cb->start_buf);
-            EXP_DATA("client strlen()=%d\n", str_len);
+            //EXP_DATA("client strlen()=%d\n", str_len);
             if (str_len/1024)
                 EXP_DATA("client strlen()=%dK\n", str_len/1024);
-                //DEBUG_LOG("client strlen()=%.1lfK\n", (float)((float)str_len/(float)1024));
-            if (str_len/1024/1024)
-                EXP_DATA("client strlen()=%dM\n", str_len/1024/1024);
-                //DEBUG_LOG("client strlen()=%fM\n", ((float)(str_len)/1024/1024));
+                //////DEBUG_LOG("client strlen()=%.1lfK\n", (float)((float)str_len/(float)1024));
+            //if (str_len/1024/1024)
+                //EXP_DATA("client strlen()=%dM\n", str_len/1024/1024);
+                ///////DEBUG_LOG("client strlen()=%fM\n", ((float)(str_len)/1024/1024));
+            EXP_DATA("\n");
         }
 
         //DEBUG_LOG("%s(): cb->start_dma_addr = 0x%d then upsate rkey\n", cb->start_dma_addr);
