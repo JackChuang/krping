@@ -115,6 +115,7 @@ static const struct krping_option krping_opts[] = {
  	{"rlat", OPT_NOPARAM, 'L'},
  	{"bw", OPT_NOPARAM, 'B'},
  	{"duplex", OPT_NOPARAM, 'd'},
+ 	{"debug", OPT_NOPARAM, 'D'},
  	{"txdepth", OPT_INT, 'T'},
  	{"poll", OPT_NOPARAM, 'P'},
  	{"local_dma_lkey", OPT_NOPARAM, 'Z'},
