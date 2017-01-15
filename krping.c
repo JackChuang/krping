@@ -39,6 +39,16 @@
  *   sudo echo "server,addr=192.168.69.127,port=9999,verbose" > /proc/krping
  *   client:
  *   sudo echo "client,addr=192.168.69.127,port=9999,verbose" > /proc/krping
+ *
+ *   perf testing:
+ *  sudo echo "server,addr=192.168.69.127,port=9999,verbose,size=8388607" > /proc/krping 
+ *
+ *  sudo echo "client,addr=192.168.69.127,port=9999,verbose,size=8388607" > /proc/krping 
+ *
+ *
+ *   4096 8192 16384 32768 65536 131072 262144 524288 1048576 2097152 4194304 8388608
+ *   Add ",size=%d" in "..."
+ *
  */
 #include <linux/version.h>
 #include <linux/module.h>
@@ -893,18 +903,21 @@ static void krping_test_server(struct krping_cb *cb)
 		}
 
 		DEBUG_LOG("----- SERVER RECEIVED SINK (3things) ADV -----\n");
-
+		
         
         
+        DEBUG_LOG("----- cb->size=%d -----\n", cb->size);
         //TODO: place a timer here ( rdtll) TODO: remove all DEBUG msg 
         //TODO: check SIZE- - 128k really!? 
 // example:
 // unsigned long ts_start, ts_end;
 // rdtscll(ts_start);
 // (...measuring...)
-// rdtscll(ts_ens);
+// rdtscll(ts_end);
         
         
+        unsigned long ts_start, ts_compose, ts_post, ts_end;
+        rdtscll(ts_start);
         // 
         //vmalloc(4k); rdma_dma_addr // payload or receiveing buf (ithink depends 1st or 2nd) TODO: check 2nd's buf. if diff GOOD
         // 
@@ -934,8 +947,9 @@ static void krping_test_server(struct krping_cb *cb)
 			inv.send_flags = IB_SEND_FENCE;
 		}
 
-	DEBUG_LOG("ib_post_send>>>>\n");
+	//DEBUG_LOG("ib_post_send>>>>\n");
 // time 2: send
+        rdtscll(ts_compose);
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
@@ -943,18 +957,24 @@ static void krping_test_server(struct krping_cb *cb)
 		}
 		cb->rdma_sq_wr.wr.next = NULL;
 // time 3: send done
-	DEBUG_LOG("----- SERVER POSTED RDMA READ REQ AND WAITING FOR READ COMPLETE -----\n");
+        rdtscll(ts_post);
+	//DEBUG_LOG("----- SERVER POSTED RDMA READ REQ AND WAITING FOR READ COMPLETE -----\n");
 
 		/* Wait for read completion */
 		wait_event_interruptible(cb->sem, 
 					 cb->state >= RDMA_READ_COMPLETE);
 // time 4: read(task) done
+        rdtscll(ts_end);
 		if (cb->state != RDMA_READ_COMPLETE) {
 			printk(KERN_ERR PFX 
 			       "wait for RDMA_READ_COMPLETE state %d\n",
 			       cb->state);
 			break;
 		}
+        
+        DEBUG_LOG("----- ts_start=%lu, ts_compose=%lu, ts_post=%lu, ts_end=%lu  ----\n",
+                                             ts_start, ts_compose, ts_post, ts_end);
+
 		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
 
 		/* Display data in recv buf */
@@ -1034,6 +1054,10 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 		DEBUG_LOG("----- SERVER POSTED GO AHEAD -----\n");
+        
+        
+        //Jack: experiment TODO: new a size
+        // cb->size *=2; <<<< new a size
 	}
 }
 
