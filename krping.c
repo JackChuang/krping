@@ -173,7 +173,8 @@ struct krping_rdma_info {
 /*
  * Default max buffer size for IO...
  */
-#define RPING_BUFSIZE 128*1024
+//#define RPING_BUFSIZE 128*1024
+#define RPING_BUFSIZE 8*1024*1024 //Jack
 #define RPING_SQ_DEPTH 64
 
 /*
@@ -336,7 +337,7 @@ static int server_recv(struct krping_cb *cb, struct ib_wc *wc)
 	cb->remote_rkey = ntohl(cb->recv_buf.rkey);
 	cb->remote_addr = ntohll(cb->recv_buf.buf);
 	cb->remote_len  = ntohl(cb->recv_buf.size);
-	DEBUG_LOG("Received rkey %d addr %llx len %d from peer\n",
+	DEBUG_LOG("\t>>>Received rkey %d addr %llx len %d from peer\n",
 		  cb->remote_rkey, (unsigned long long)cb->remote_addr, 
 		  cb->remote_len);
 
@@ -412,13 +413,13 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 
 		switch (wc.opcode) {
 		case IB_WC_SEND:
-			DEBUG_LOG("send completion\n");
+			DEBUG_LOG("----- SEND COMPLETION -----\n");
 			cb->stats.send_bytes += cb->send_sgl.length;
 			cb->stats.send_msgs++;
 			break;
 
 		case IB_WC_RDMA_WRITE:
-			DEBUG_LOG("rdma write completion\n");
+			DEBUG_LOG("----- RDMA WRITE COMPLETION ----- (good)\n");
 			cb->stats.write_bytes += cb->rdma_sq_wr.wr.sg_list->length;
 			cb->stats.write_msgs++;
 			cb->state = RDMA_WRITE_COMPLETE;
@@ -426,7 +427,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 			break;
 
 		case IB_WC_RDMA_READ:
-			DEBUG_LOG("rdma read completion\n");
+			DEBUG_LOG("----- RDMA READ COMPLETION ----- (good)\n");
 			cb->stats.read_bytes += cb->rdma_sq_wr.wr.sg_list->length;
 			cb->stats.read_msgs++;
 			cb->state = RDMA_READ_COMPLETE;
@@ -434,7 +435,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 			break;
 
 		case IB_WC_RECV:
-			DEBUG_LOG("recv completion\n");
+			DEBUG_LOG("----- RECV COMPLETION -----\n");
 			cb->stats.recv_bytes += sizeof(cb->recv_buf);
 			cb->stats.recv_msgs++;
 			if (cb->wlat || cb->rlat || cb->bw)
@@ -447,7 +448,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 				goto error;
 			}
 
-	        DEBUG_LOG("ib_post_recv<<<<\n");
+	        DEBUG_LOG("ib_post_recv (something completed) <check recv buf> \n");
 			ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
 			if (ret) {
 				printk(KERN_ERR PFX "post recv error: %d\n", 
@@ -621,21 +622,12 @@ static int krping_setup_buffers(struct krping_cb *cb) // init all buffers < 1.pd
 	DEBUG_LOG("@@@ 1 correct lkey=%d (ref: ./drivers/infiniband/core/mad.c ) \
             (ctx->pd->local_dma_lkey)\n", cb->pd->local_dma_lkey);     //4450 dynamic
 
-    // check all mr
-    DEBUG_LOG("===== checking ======\n");
-    if (cb->dma_mr!=NULL) {
-        DEBUG_LOG("@@@ Jack cb->dma_mr->lkey %d from mr \n", cb->dma_mr->lkey);
-        DEBUG_LOG("@@@ Jack cb->dma_mr->rkey %d from mr \n", cb->dma_mr->rkey);
-    }
-    if (cb->rdma_mr!=NULL) {
-	    DEBUG_LOG("@@@ Jack cb->rdma_mr->lkey %d from mr \n", cb->rdma_mr->lkey);
-	    DEBUG_LOG("@@@ Jack cb->rdma_mr->rkey %d from mr \n", cb->rdma_mr->rkey);
-    }
-    if (cb->start_mr!=NULL) {
-        DEBUG_LOG("@@@ Jack cb->start_mr->lkey %d from mr \n", cb->start_mr->lkey);
-        DEBUG_LOG("@@@ Jack cb->start_mr->rkey %d from mr \n", cb->start_mr->rkey);
-    }
-	DEBUG_LOG("===== checking end ======\n");
+    /*
+        // these are all NULL.
+        cb->dma_mr->lkey, cb->dma_mr->rkey
+        cb->rdma_mr->lkey, cb->rdma_mr->rkey
+        cb->start_mr->lkey, cb->start_mr->rkey
+    */
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client generates rdma address for server
         DEBUG_LOG("only server setup start_buf start_dma_addr\n");
@@ -825,7 +817,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
 	BUG_ON(ret <= 0 || ret > cb->page_list_len);
 
-	DEBUG_LOG(PFX "post_inv = %d, reg_mr new rkey 0x%x pgsz %u len %u"
+	DEBUG_LOG(PFX "post_inv = %d, reg_mr new rkey %d pgsz %u len %u"
 		" iova_start %llx\n",
 		post_inv,
 		cb->reg_mr_wr.key,
@@ -900,13 +892,29 @@ static void krping_test_server(struct krping_cb *cb)
 			break;
 		}
 
-		DEBUG_LOG("server received sink adv\n");
+		DEBUG_LOG("----- SERVER RECEIVED SINK (3things) ADV -----\n");
 
+        
+        
+        //TODO: place a timer here ( rdtll) TODO: remove all DEBUG msg 
+        //TODO: check SIZE- - 128k really!? 
+// example:
+// unsigned long ts_start, ts_end;
+// rdtscll(ts_start);
+// (...measuring...)
+// rdtscll(ts_ens);
+        
+        
+        // 
+        //vmalloc(4k); rdma_dma_addr // payload or receiveing buf (ithink depends 1st or 2nd) TODO: check 2nd's buf. if diff GOOD
+        // 
+        
+// time1 : compose msg info
 		cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
 		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote
 
-		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv);
+		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
 		cb->rdma_sq_wr.wr.next = NULL;
 
 		/* Issue RDMA Read. */
@@ -926,26 +934,28 @@ static void krping_test_server(struct krping_cb *cb)
 			inv.send_flags = IB_SEND_FENCE;
 		}
 
-	    DEBUG_LOG("ib_post_send>>>>\n");
+	DEBUG_LOG("ib_post_send>>>>\n");
+// time 2: send
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
 		cb->rdma_sq_wr.wr.next = NULL;
-
-		DEBUG_LOG("server posted rdma read req \n");
+// time 3: send done
+	DEBUG_LOG("----- SERVER POSTED RDMA READ REQ AND WAITING FOR READ COMPLETE -----\n");
 
 		/* Wait for read completion */
 		wait_event_interruptible(cb->sem, 
 					 cb->state >= RDMA_READ_COMPLETE);
+// time 4: read(task) done
 		if (cb->state != RDMA_READ_COMPLETE) {
 			printk(KERN_ERR PFX 
 			       "wait for RDMA_READ_COMPLETE state %d\n",
 			       cb->state);
 			break;
 		}
-		DEBUG_LOG("server received read complete\n");
+		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
 
 		/* Display data in recv buf */
 		if (cb->verbose)
@@ -964,7 +974,7 @@ static void krping_test_server(struct krping_cb *cb)
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
-		DEBUG_LOG("server posted go ahead\n");
+		DEBUG_LOG("----- SERVER POSTED GO AHEAD -----\n");
 
 		/* Wait for client's RDMA STAG/TO/Len */
 		wait_event_interruptible(cb->sem, cb->state >= RDMA_WRITE_ADV);
@@ -974,7 +984,7 @@ static void krping_test_server(struct krping_cb *cb)
 			       cb->state);
 			break;
 		}
-		DEBUG_LOG("server received sink adv\n");
+		DEBUG_LOG("----- SERVER RECEIVED SINK (3things) ADV -----\n");
 
 		/* RDMA Write echo data */
 		cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;  //WRITE
@@ -1023,7 +1033,7 @@ static void krping_test_server(struct krping_cb *cb)
 			printk(KERN_ERR PFX "post send error %d\n", ret);
 			break;
 		}
-		DEBUG_LOG("server posted go ahead\n");
+		DEBUG_LOG("----- SERVER POSTED GO AHEAD -----\n");
 	}
 }
 
@@ -2205,40 +2215,32 @@ int krping_doit(char *cmd)
 			cb->addr_str = optarg;
 			in4_pton(optarg, -1, cb->addr, -1, NULL);
 			cb->addr_type = AF_INET;
-			DEBUG_LOG("ipaddr (%s)\n", optarg);
+			printk("ipaddr (%s)\n", optarg);
 			break;
 		case 'A':
 			cb->addr_str = optarg;
 			in6_pton(optarg, -1, cb->addr, -1, NULL);
 			cb->addr_type = AF_INET6;
-			DEBUG_LOG("ipv6addr (%s)\n", optarg);
+			printk("ipv6addr (%s)\n", optarg);
 			break;
 		case 'p':
 			cb->port = htons(optint);
-			DEBUG_LOG("port %d\n", (int)optint);
+			printk("port %d\n", (int)optint);
 			break;
 		case 'P':
 			cb->poll = 1;
-			DEBUG_LOG("server\n");
+			printk("server\n");
 			break;
 		case 's':
 			cb->server = 1;
-			DEBUG_LOG("server\n");
+			printk("server\n");
 			break;
 		case 'c':
 			cb->server = 0;
-			DEBUG_LOG("client\n");
+			printk("client\n");
 			break;
 		case 'S':
 			cb->size = optint;
-			if ((cb->size < 1) ||
-			    (cb->size > RPING_BUFSIZE)) {
-				printk(KERN_ERR PFX "Invalid size %d "
-				       "(valid range is 1 to %d)\n",
-				       cb->size, RPING_BUFSIZE);
-				ret = EINVAL;
-			} else
-				DEBUG_LOG("size %d\n", (int)optint);
 			break;
 		case 'C':
 			cb->count = optint;
@@ -2247,15 +2249,15 @@ int krping_doit(char *cmd)
 					cb->count);
 				ret = EINVAL;
 			} else
-				DEBUG_LOG("count %d\n", (int) cb->count);
+				printk("count %d\n", (int) cb->count);
 			break;
 		case 'v':
 			cb->verbose++;
-			DEBUG_LOG("verbose\n");
+			printk("verbose\n");
 			break;
 		case 'V':
 			cb->validate++;
-			DEBUG_LOG("validate data\n");
+			printk("validate data\n");
 			break;
 		case 'l':
 			cb->wlat++;
@@ -2274,19 +2276,19 @@ int krping_doit(char *cmd)
 			break;
 		case 'T':
 			cb->txdepth = optint;
-			DEBUG_LOG("txdepth %d\n", (int) cb->txdepth);
+			printk("txdepth %d\n", (int) cb->txdepth);
 			break;
 		case 'Z':
 			cb->local_dma_lkey = 1;
-			DEBUG_LOG("using local dma lkey\n");
+			printk("using local dma lkey\n");
 			break;
 		case 'R':
 			cb->read_inv = 0; // Jack default=1
-			DEBUG_LOG("using read-with-inv\n");
+			printk("using read-with-inv\n");
 			break;
 		case 'f':
 			cb->frtest = 1;
-			DEBUG_LOG("fast-reg test!\n");
+			printk("fast-reg test!\n");
 			break;
 		default:
 			printk(KERN_ERR PFX "unknown opt %s\n", optarg);
@@ -2294,7 +2296,17 @@ int krping_doit(char *cmd)
 			break;
 		}
 	}
-	if (ret)
+    
+    if ((cb->size < 1) ||
+        (cb->size > RPING_BUFSIZE)) {
+        printk(KERN_ERR PFX "Invalid size %d "
+               "(valid range is 1 to %d)\n",
+               cb->size, RPING_BUFSIZE);
+        ret = EINVAL;
+    } else
+        printk("size %d\n", (int)optint);
+	
+    if (ret)
 		goto out;
 
 	if (cb->server == -1) {
