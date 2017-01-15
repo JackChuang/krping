@@ -934,7 +934,7 @@ static void krping_test_server(struct krping_cb *cb)
 		DEBUG_LOG("----- SERVER RECEIVED SINK (3things) ADV -----\n");
 		
         
-        
+///////////////////////////////////////////////////////////////////////////////////////////////////////        
 // example:
 // unsigned long ts_start, ts_end;
 // rdtscll(ts_start);
@@ -999,7 +999,14 @@ static void krping_test_server(struct krping_cb *cb)
 			       cb->state);
 			break;
 		}
-        
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		DEBUG_LOG("----- SERVER RECEIVED READ COMPLETE  ----\n");
 		DEBUG_LOG("\n\n\n");
@@ -1054,8 +1061,7 @@ static void krping_test_server(struct krping_cb *cb)
 
 
 
-
-///////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
         volatile unsigned long ts_wr_start, ts_wr_compose, ts_wr_post, ts_wr_end;
         // time1 : compose msg info
         rdtscll(ts_wr_start);
@@ -1099,17 +1105,26 @@ static void krping_test_server(struct krping_cb *cb)
 			       cb->state);
 			break;
 		}
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n",
-                                    ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
+            //EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n",
+            //                        ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
+            EXP_DATA("----- rd compose time=%lu, post time=%lu, end time=%lu  ----\n", 
+                                    timespec_to_ns(ts_compose-ts_start), 
+                                    timespec_to_ns(ts_post-ts_start), 
+                                    timespec_to_ns(ts_end-ts_start));
+
         }
         // wr !!
         if (cb->verbose) {
+            //EXP_DATA("----- wr compose time=%lu, post time=%lu, end time=%lu  ----\n",
+            //                ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("----- wr compose time=%lu, post time=%lu, end time=%lu  ----\n",
-                            ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
+                            timespec_to_ns(ts_wr_compose-ts_wr_start), 
+                            timespec_to_ns(ts_wr_post-ts_wr_start), 
+                            timespec_to_ns(ts_wr_end-ts_wr_start));
             EXP_DATA("\n");
         }
         
@@ -1125,7 +1140,6 @@ static void krping_test_server(struct krping_cb *cb)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		DEBUG_LOG("server rdma write complete \n");
-
 		cb->state = CONNECTED;
 
 		/* Tell client to begin again */
