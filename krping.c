@@ -102,7 +102,8 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 #define EXP_DATA if(KRPING_EXP_DATA) printk
 #define DEBUG_LOG if(debug && !KRPING_EXP_DATA) printk
 
-#define KRPRINT_INIT printk
+//#define KRPRINT_INIT printk
+#define KRPRINT_INIT 
 
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping server");
@@ -330,8 +331,8 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 			cb->state = CONNECTED;
 		//}
         DEBUG_LOG("%s(): cb->state=%d, CONNECTED=%d\n", __func__, cb->state, CONNECTED);
-		wake_up(&cb->sem);
-		//wake_up_interruptible(&cb->sem);
+		wake_up(&cb->sem); // TODO: testing: change back, see if it runs as well
+		//wake_up_interruptible(&cb->sem); // default:
 		break;
 
 	case RDMA_CM_EVENT_ADDR_ERROR:
@@ -552,14 +553,14 @@ static void krping_setup_wr(struct krping_cb *cb) // set up sgl, used for rdma
 	cb->recv_sgl.length = sizeof cb->recv_buf;  //sizeof cb->recv_buf(16)
                                                 //sizeof cb->recv_buf.buf(8)
 	DEBUG_LOG("sizeof cb->recv_buf=%d, sizeof cb->recv_buf.buf=%d\n", sizeof cb->recv_buf, sizeof cb->recv_buf.buf);
-    cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
+    //cb->recv_sgl.lkey = cb->qp->device->local_dma_lkey; // Jack: FOUND A SERVERE BUG!!! WRONG (0)
     cb->rq_wr.sg_list = &cb->recv_sgl;
 	cb->rq_wr.num_sge = 1;
 
 	cb->send_sgl.addr = cb->send_dma_addr; // addr
 	//cb->send_sgl.addr = cb->send_buf.buf; // wrong: cannot use kernel addr
 	cb->send_sgl.length = sizeof cb->send_buf;
-	cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; // wrong (0)
+	//cb->send_sgl.lkey = cb->qp->device->local_dma_lkey; // Jack: FOUND A SERVERE BUG!!! WRONG (0)
 
     //3
     cb->recv_sgl.lkey = cb->pd->local_dma_lkey; // correct
@@ -1025,8 +1026,10 @@ static void krping_test_server(struct krping_cb *cb)
             
         }
 
+
+//send .go ahead. to client
 		/* Tell client to continue */
-		if (cb->server && cb->server_invalidate) {
+		if (cb->server && cb->server_invalidate) { // do we need to invalidate?
 			cb->sq_wr.ex.invalidate_rkey = cb->remote_rkey;
 			cb->sq_wr.opcode = IB_WR_SEND_WITH_INV;
 			DEBUG_LOG("send-w-inv rkey %d\n", cb->remote_rkey);
@@ -1118,10 +1121,10 @@ static void krping_test_server(struct krping_cb *cb)
         }
         old_str_len = str_len;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 		DEBUG_LOG("server rdma write complete \n");
 		cb->state = CONNECTED;
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 		/* Tell client to begin again */
 		if (cb->server && cb->server_invalidate) {
@@ -1673,22 +1676,21 @@ static int krping_bind_server(struct krping_cb *cb)
 
 	fill_sockaddr(&sin, cb);
 
+	DEBUG_LOG("rdma_bind_addr\n");
 	ret = rdma_bind_addr(cb->cm_id, (struct sockaddr *)&sin);
 	if (ret) {
 		printk(KERN_ERR PFX "rdma_bind_addr error %d\n", ret);
 		return ret;
 	}
-	DEBUG_LOG("rdma_bind_addr successful\n");
 
 	DEBUG_LOG("rdma_listen\n");
-	DEBUG_LOG("\n\n\n");
-	ret = rdma_listen(cb->cm_id, 3);
+	ret = rdma_listen(cb->cm_id, 999); // Jack: TODO: don't hardcode
 	if (ret) {
 		printk(KERN_ERR PFX "rdma_listen failed: %d\n", ret);
 		return ret;
 	}
 
-	wait_event_interruptible(cb->sem, cb->state >= CONNECT_REQUEST);
+	wait_event_interruptible(cb->sem, cb->state >= CONNECT_REQUEST); // krping_cma_event_handler
 	if (cb->state != CONNECT_REQUEST) {
 		printk(KERN_ERR PFX "wait for CONNECT_REQUEST state %d\n",
 			cb->state);
@@ -1709,6 +1711,7 @@ static void krping_run_server(struct krping_cb *cb)
 	ret = krping_bind_server(cb);
 	if (ret)
 		return;
+	DEBUG_LOG("\n\n\n");
 
 	ret = krping_setup_qp(cb, cb->child_cm_id);
 	if (ret) {
@@ -1721,6 +1724,7 @@ static void krping_run_server(struct krping_cb *cb)
 		printk(KERN_ERR PFX "krping_setup_buffers failed: %d\n", ret);
 		goto err1;
 	}
+    // so far you can do send/recv
 
 	DEBUG_LOG("ib_post_recv<<<<\n");
 	ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
@@ -2264,13 +2268,13 @@ static int krping_bind_client(struct krping_cb *cb)
 
 	fill_sockaddr(&sin, cb);
 
-	ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *)&sin, 2000);
+	ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *)&sin, 2000); // Jack TODO: check what's 2000
 	if (ret) {
 		printk(KERN_ERR PFX "rdma_resolve_addr error %d\n", ret);
 		return ret;
 	}
 
-	wait_event_interruptible(cb->sem, cb->state >= ROUTE_RESOLVED);
+	wait_event_interruptible(cb->sem, cb->state >= ROUTE_RESOLVED); // krping_cma_event_handler
 	if (cb->state != ROUTE_RESOLVED) {
 		printk(KERN_ERR PFX 
 		       "addr/route resolution did not resolve: state %d\n",
@@ -2305,7 +2309,7 @@ static void krping_run_client(struct krping_cb *cb)
 		printk(KERN_ERR PFX "krping_setup_buffers failed: %d\n", ret);
 		goto err1;
 	}
-
+    // so far you can do send/recv
     DEBUG_LOG("@@@ (check1) cb->start_dma_addr = 0x%llx Jack (only client)\n", cb->start_dma_addr);
 
 	DEBUG_LOG("ib_post_recv<<<<\n");
@@ -2359,7 +2363,7 @@ int krping_doit(char *cmd)
 		return -ENOMEM;
 
 	mutex_lock(&krping_mutex);
-	list_add_tail(&cb->list, &krping_cbs);
+	list_add_tail(&cb->list, &krping_cbs); // multiple cb!!!
 	mutex_unlock(&krping_mutex);
 
 	cb->server = -1;
@@ -2389,7 +2393,7 @@ int krping_doit(char *cmd)
 			break;
 		case 'P':
 			cb->poll = 1;
-			KRPRINT_INIT("server\n");
+			KRPRINT_INIT("poll\n");
 			break;
 		case 's':
 			cb->server = 1;
@@ -2437,6 +2441,7 @@ int krping_doit(char *cmd)
 			KRPRINT_INIT("debug=1 (on)\n");
 			break;
 		case 'I':
+            // TODO chagne here is no use!!
 			cb->server_invalidate = 0; //Jack default=1
 			break;
 		case 'T':
@@ -2448,6 +2453,7 @@ int krping_doit(char *cmd)
 			KRPRINT_INIT("using local dma lkey\n");
 			break;
 		case 'R':
+            // TODO chagne here is no use!!
 			cb->read_inv = 0; // Jack default=1
 			KRPRINT_INIT("using read-with-inv\n");
 			break;
@@ -2465,6 +2471,10 @@ int krping_doit(char *cmd)
 			break;
 		}
 	}
+
+    //TODO: open and test
+    //cb->server_invalidate = 0;
+    //cb->read_inv = 0;
     
     if ((cb->size < 1) ||
         (cb->size > RPING_BUFSIZE)) {
@@ -2508,7 +2518,7 @@ int krping_doit(char *cmd)
 		printk(KERN_ERR PFX "rdma_create_id error %d\n", ret);
 		goto out;
 	}
-	KRPRINT_INIT("created cm_id %p\n", cb->cm_id);
+	KRPRINT_INIT("created cm_id %p (event handler)\n", cb->cm_id);
 
 
 	KRPRINT_INIT("CPU freq. = 2.10GHz = 2.1*1024*1024*1024 = 2254857830.4\n");
