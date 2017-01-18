@@ -852,10 +852,11 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	else
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
-	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
-	//sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
-    //cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic)
-	
+printk("hardcoded size %d\n",  cb->size);
+	sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
+    //sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
+
+    /*
     if(cb->server){
         printk("got the size from remote %d\n", cb->remote_len);
 	    sg_dma_len(&sg) = cb->remote_len;
@@ -865,6 +866,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     
     }
+    */
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
@@ -905,8 +907,8 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate);
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
-		//info->size = htonl(cb->size);       // update
-		info->size = htonl(cb->from_size);       // update //Jack
+		info->size = htonl(cb->size);       // update
+		//info->size = htonl(cb->from_size);       // update //Jack
 		DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
 			  (unsigned long long)buf, rkey, cb->size);
 	}
@@ -963,8 +965,9 @@ static void krping_test_server(struct krping_cb *cb)
 		
         cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
-	//cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic) //TODO tsting
-		cb->rdma_sq_wr.wr.sg_list->length = 4096; // updated from remote (dynamic) // TODO testing
+	    cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic) //TODO tsting
+		//cb->rdma_sq_wr.wr.sg_list->length = 4096; // updated from remote (dynamic) // TODO testing
+		//cb->rdma_sq_wr.wr.sg_list->length = 4194304; // updated from remote (dynamic) // TODO testing
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
