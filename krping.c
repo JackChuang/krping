@@ -88,13 +88,13 @@
 #define PFX "krping: "
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, 1);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 
 
 
 
-#define KRPING_EXP_LOG 0
+#define KRPING_EXP_LOG  1
 #define KRPING_EXP_DATA 1
 
 // for making sure data is good (not gaurantee it doesn't affect data)
