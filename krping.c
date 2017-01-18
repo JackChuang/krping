@@ -56,7 +56,7 @@
  *   exp_data controed by hardcoded (I may export that later)
  *
  *
- *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,count=100,from=4069,size=4194304" > /proc/krping
+ *   sudo echo "server,addr=192.168.69.127,port=9999,verbose,count=100,from=4096,size=4194304" > /proc/krping
  */
 #include <linux/version.h>
 #include <linux/module.h>
@@ -1131,14 +1131,12 @@ static void krping_test_server(struct krping_cb *cb)
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            EXP_DATA("RD: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len,
-            //EXP_DATA("RD: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
+            EXP_DATA("RD: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", (str_len+1)/1024, //+1 end char
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
         // wr !!
         if (cb->verbose) {
-            EXP_DATA("WR: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len,
-            //EXP_DATA("WR: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
+            EXP_DATA("WR: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", (str_len+1)/1024, //+1 end char
                             ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
