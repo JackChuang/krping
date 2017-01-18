@@ -211,7 +211,7 @@ struct krping_rdma_info {
 /*
  * Default max buffer size for IO...
  */
-//#define RPING_BUFSIZE 128*1024
+//#define RPING_BUFSIZE 128*1024 // > 1 PAGE so I guess sending more than a page I don't have to change _mr()
 #define RPING_BUFSIZE 8*1024*1024 //Jack
 #define RPING_SQ_DEPTH 64
 
@@ -852,8 +852,11 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	else
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
-	sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
+	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
 	//sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
+    //cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic)
+	printk("got the size from remote %d\n", cb->remote_len);
+	sg_dma_len(&sg) = cb->remote_len;
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
@@ -890,11 +893,12 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 * advertising the rdma buffer.  Server side
 	 * sends have no data.
 	 */
-	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client
+	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client!!!!
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate);
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
-		info->size = htonl(cb->size);       // update
+		//info->size = htonl(cb->size);       // update
+		info->size = htonl(cb->from_size);       // update //Jack
 		DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
 			  (unsigned long long)buf, rkey, cb->size);
 	}
@@ -944,14 +948,14 @@ static void krping_test_server(struct krping_cb *cb)
 // rdtscll(ts_start);
 // (...measuring...)
 // rdtscll(ts_end);
-        
+//READ 
         volatile unsigned long ts_start, ts_compose, ts_post, ts_end;
-        // time1 : compose msg info
+//>>    // time1 : compose msg info
         rdtscll(ts_start);
 		
         cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
-		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote
+		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic)
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
@@ -977,7 +981,7 @@ static void krping_test_server(struct krping_cb *cb)
         if(!KRPING_EXP_DATA && cb->verbose)
 	        DEBUG_LOG("ib_post_send>>>>\n"); // be careful
 
-        // time 2: send
+//>>    // time 2: send
         rdtscll(ts_compose);
 		ret = ib_post_send(cb->qp, &cb->rdma_sq_wr.wr, &bad_wr);
 		if (ret) {
@@ -986,7 +990,7 @@ static void krping_test_server(struct krping_cb *cb)
 		}
 		cb->rdma_sq_wr.wr.next = NULL;
 
-        // time 3: send done
+//>>    // time 3: send done
         rdtscll(ts_post);
         if(!KRPING_EXP_DATA && cb->verbose)
 	        DEBUG_LOG("----- SERVER POSTED RDMA READ REQ AND WAITING FOR READ COMPLETE -----\n"); // be careful
@@ -995,7 +999,7 @@ static void krping_test_server(struct krping_cb *cb)
 		wait_event_interruptible(cb->sem, 
 					 cb->state >= RDMA_READ_COMPLETE);
     
-        // time 4: read(task) done
+//>>    // time 4: read(task) done
         rdtscll(ts_end);
 		if (cb->state != RDMA_READ_COMPLETE) {
 			printk(KERN_ERR PFX 
@@ -1059,7 +1063,7 @@ static void krping_test_server(struct krping_cb *cb)
 
 //////////////////////////////////////////////////////////////////////////////////////
         volatile unsigned long ts_wr_start, ts_wr_compose, ts_wr_post, ts_wr_end;
-        // time1 : compose msg info
+//>>    // time1 : compose msg info
         rdtscll(ts_wr_start);
 
 		/* RDMA Write echo data */
@@ -1808,7 +1812,6 @@ while (cb->from_size <= cb->size){
         // send start_dma_addr to remote
 
 	  
-        
         DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
         if(KRPING_EXP_DATA){
 	        msleep(3000); // give time to prepare the buffer
@@ -2146,6 +2149,7 @@ static void flush_qp(struct krping_cb *cb)
 	DEBUG_LOG("qp_flushed! ccnt %u\n", ccnt);
 }
 
+/*
 static void krping_fr_test(struct krping_cb *cb)
 {
 	struct ib_send_wr inv, *bad;
@@ -2242,6 +2246,7 @@ err2:
 	DEBUG_LOG("fr_test: done!\n");
 	ib_dereg_mr(mr);
 }
+*/
 
 static int krping_connect_client(struct krping_cb *cb)
 {
