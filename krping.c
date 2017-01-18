@@ -1041,6 +1041,7 @@ static void krping_test_server(struct krping_cb *cb)
         }
         
         str_len = strlen(cb->rdma_buf);
+        /*
         if(KRPING_EXP_DATA) {
             EXP_LOG("server strlen()=%d\n", str_len);
             if (str_len/1024)
@@ -1053,7 +1054,7 @@ static void krping_test_server(struct krping_cb *cb)
             //EXP_DATA("\n");
             
         }
-
+        */
 
 //send .go ahead. to client
 		/* Tell client to continue */
@@ -1130,12 +1131,12 @@ static void krping_test_server(struct krping_cb *cb)
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            EXP_DATA("RD: compose_time %lu post_time %lu end_time %lu (cpu ticks)\n",
+            EXP_DATA("RD: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1000
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
         // wr !!
         if (cb->verbose) {
-            EXP_DATA("WR: compose_time %lu post_time %lu end_time %lu (cpu ticks)\n",
+            EXP_DATA("WR: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1000
                             ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
