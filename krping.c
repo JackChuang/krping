@@ -100,10 +100,12 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 // for making sure data is good (not gaurantee it doesn't affect data)
 #define EXP_LOG if(KRPING_EXP_LOG) printk
 #define EXP_DATA if(KRPING_EXP_DATA) printk
-#define DEBUG_LOG if(debug && !KRPING_EXP_DATA) printk
+//#define DEBUG_LOG if(debug && !KRPING_EXP_DATA) printk
 
-//#define KRPRINT_INIT printk
-#define KRPRINT_INIT 
+#define DEBUG_LOG printk
+
+#define KRPRINT_INIT printk
+//#define KRPRINT_INIT 
 
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping server");
