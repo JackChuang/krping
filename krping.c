@@ -1131,12 +1131,14 @@ static void krping_test_server(struct krping_cb *cb)
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            EXP_DATA("RD: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
+            EXP_DATA("RD: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len,
+            //EXP_DATA("RD: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
         // wr !!
         if (cb->verbose) {
-            EXP_DATA("WR: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
+            EXP_DATA("WR: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len,
+            //EXP_DATA("WR: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
                             ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
@@ -1815,7 +1817,8 @@ while (cb->from_size <= cb->size){
             break; //
         
 		/* Put some ascii text in the dma buffer. */
-		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf 
+		//cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf // Jack no need
+        cc=0;
 		//for (i = cc, c = start; i < cb->size; i++) { // Jack need to change
 		//for (i = cc, c = start; i < exp_size; i++) {
 		for (i = cc, c = start; i < cb->from_size; i++) {
@@ -1842,6 +1845,7 @@ while (cb->from_size <= cb->size){
 	        msleep(3000); // give time to prepare the buffer
             int str_len = strlen(cb->start_buf);
             EXP_LOG("client strlen()=%d cb->from_size=%d\n", str_len, cb->from_size);
+            EXP_DATA("client strlen()=%d cb->from_size=%d\n", str_len, cb->from_size);
             if (str_len/1024)
                 EXP_DATA("client strlen()=%dK cb->from_size=%d\n", str_len/1024, cb->from_size/1024);
                 EXP_LOG("client strlen()=%dK cb->from_size=%d (/1000)\n", str_len/1000, cb->from_size/1000);
