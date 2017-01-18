@@ -856,7 +856,8 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
 	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
-	sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
+	//sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
+    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
 printk("hardcoded size %d\n",  sg_dma_len(&sg));
     //sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
 
@@ -912,7 +913,8 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
 		//info->size = htonl(cb->size);       // update
-		info->size = htonl(4096-1);       // update //Jack
+		//info->size = htonl(4096-1);       // update //Jack
+		info->size = htonl(cb->from_size);       // update //Jack
 		//DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
 		//      (unsigned long long)buf, rkey, cb->size);
 		DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
