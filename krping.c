@@ -855,8 +855,9 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	else
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
-printk("hardcoded size %d\n",  cb->size);
-	sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
+	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
+	sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
+printk("hardcoded size %d\n",  sg_dma_len(&sg));
     //sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
 
     /*
