@@ -1131,12 +1131,12 @@ static void krping_test_server(struct krping_cb *cb)
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            EXP_DATA("RD: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1000,
+            EXP_DATA("RD: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
         // wr !!
         if (cb->verbose) {
-            EXP_DATA("WR: %d compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1000,
+            EXP_DATA("WR: %dK compose_time %lu post_time %lu end_time %lu (cpu ticks)\n", str_len/1024,
                             ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
@@ -1801,7 +1801,7 @@ static void krping_test_client(struct krping_cb *cb)
     //int exp_size = cb->size; // MAX
     //unsigned long exp_size = from_size; // MIN
     //cb->from_size = 4096; // MIN
-
+    old_str_len = cb->from_size;
 	start = 65;
 	KRPRINT_INIT("cb->count=%d\n", cb->count);
 //while (exp_size <= cb->size){
