@@ -963,7 +963,8 @@ static void krping_test_server(struct krping_cb *cb)
 		
         cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
-		cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic)
+	//cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic) //TODO tsting
+		cb->rdma_sq_wr.wr.sg_list->length = 4096; // updated from remote (dynamic) // TODO testing
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
