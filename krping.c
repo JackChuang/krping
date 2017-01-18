@@ -94,18 +94,20 @@ MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 
 
 
-#define KRPING_EXP_LOG  1
+#define KRPING_EXP_LOG  0
 #define KRPING_EXP_DATA 1
 
 // for making sure data is good (not gaurantee it doesn't affect data)
 #define EXP_LOG if(KRPING_EXP_LOG) printk
+
 #define EXP_DATA if(KRPING_EXP_DATA) printk
-//#define DEBUG_LOG if(debug && !KRPING_EXP_DATA) printk
 
-#define DEBUG_LOG printk
+#define DEBUG_LOG if(debug && !KRPING_EXP_DATA) printk
+//#define DEBUG_LOG printk
 
-#define KRPRINT_INIT printk
-//#define KRPRINT_INIT 
+
+//#define KRPRINT_INIT printk
+#define KRPRINT_INIT 
 
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping server");
@@ -859,6 +861,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	//sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
     //sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     
+    // Jack!!! support dynamically chage the R/W length
     if(cb->server){
         printk("got the size from remote %d\n", cb->remote_len);
 	    sg_dma_len(&sg) = cb->remote_len;
@@ -868,8 +871,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     
     }
-printk("hardcoded size %d\n",  sg_dma_len(&sg));
-    
+    EXP_LOG("hardcoded size %d\n",  sg_dma_len(&sg));
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
