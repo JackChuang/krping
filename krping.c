@@ -109,9 +109,9 @@ MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping server");
 MODULE_LICENSE("Dual BSD/GPL");
 
-volatile unsigned long from_size = 4096;
 volatile static int str_len;
 volatile static int old_str_len;
+//volatile unsigned long from_size = 4096;
 
 static const struct krping_option krping_opts[] = {
 	{"count", OPT_INT, 'C'},
@@ -289,7 +289,9 @@ struct krping_cb {
 	struct rdma_cm_id *cm_id;	/* connection on client side,*/
 					/* listener on server side. */
 	struct rdma_cm_id *child_cm_id;	/* connection on server side */
-	struct list_head list;	
+	struct list_head list;
+    //volatile unsigned long from_size = 4096;
+    unsigned long from_size;
 };
 
 static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
@@ -850,7 +852,8 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	else
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
-	sg_dma_len(&sg) = cb->size;
+	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
+	sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
@@ -1102,12 +1105,12 @@ static void krping_test_server(struct krping_cb *cb)
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // rd !!
 		if (cb->verbose) {
-            EXP_DATA("RD: compose time=%lu, post time=%lu, end time=%lu (cpu ticks)\n",
+            EXP_DATA("RD: compose_time %lu post_time %lu end_time %lu (cpu ticks)\n",
                                     ts_compose-ts_start, ts_post-ts_start, ts_end-ts_start);
         }
         // wr !!
         if (cb->verbose) {
-            EXP_DATA("WR: compose time=%lu, post time=%lu, end time=%lu (cpu ticks)\n",
+            EXP_DATA("WR: compose_time %lu post_time %lu end_time %lu (cpu ticks)\n",
                             ts_wr_compose-ts_wr_start, ts_wr_post-ts_wr_start, ts_wr_end-ts_wr_start);
             EXP_DATA("\n");
         }
@@ -1767,22 +1770,26 @@ static void krping_test_client(struct krping_cb *cb)
 	unsigned char c;
     
     //int exp_size = cb->size; // MAX
-    unsigned long exp_size = from_size; // MIN
+    //unsigned long exp_size = from_size; // MIN
+    cb->from_size = 4096; // MIN
 
 	start = 65;
 	KRPRINT_INIT("cb->count=%d\n", cb->count);
-while (exp_size <= cb->size){
+//while (exp_size <= cb->size){
+while (cb->from_size <= cb->size){
         
     for (ping = 0; !cb->count || ping < cb->count; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
         
-        if (exp_size > cb->size) // Jack terminates it
+        //if (exp_size > cb->size) // Jack terminates it
+        if (cb->from_size > cb->size) // Jack terminates it
             break; //
         
 		/* Put some ascii text in the dma buffer. */
 		cc = sprintf(cb->start_buf, "rdma-ping-%d: ", ping); // start_buf 
 		//for (i = cc, c = start; i < cb->size; i++) { // Jack need to change
-		for (i = cc, c = start; i < exp_size; i++) {
+		//for (i = cc, c = start; i < exp_size; i++) {
+		for (i = cc, c = start; i < cb->from_size; i++) {
 			cb->start_buf[i] = c;
 			c++;
 			if (c > 122)
@@ -1792,7 +1799,8 @@ while (exp_size <= cb->size){
 		if (start > 122)
 			start = 65;
 		//cb->start_buf[cb->size - 1] = 0; // Jack need to change
-		cb->start_buf[exp_size - 1] = 0;
+		//cb->start_buf[exp_size - 1] = 0;
+		cb->start_buf[cb->from_size - 1] = 0;
        
 
         // since this start_dma_addr = dma_map_single(cb->start_buf); 
@@ -1887,7 +1895,8 @@ while (exp_size <= cb->size){
 
 		if (cb->validate)
 			//if (memcmp(cb->start_buf, cb->rdma_buf, cb->size)) { // Jack: need to change
-			if (memcmp(cb->start_buf, cb->rdma_buf, exp_size)) {
+			//if (memcmp(cb->start_buf, cb->rdma_buf, exp_size)) {
+			if (memcmp(cb->start_buf, cb->rdma_buf, cb->from_size)) {
 				printk(KERN_ERR PFX "data mismatch!\n");
 				break;
 			}
@@ -1910,7 +1919,8 @@ while (exp_size <= cb->size){
     EXP_DATA("===========================================================\n"); 
     EXP_DATA("===========================================================\n"); 
     EXP_DATA("===========================================================\n"); 
-    exp_size *= 2;
+    //exp_size *= 2;
+    cb->from_size = cb->from_size*2;
 }
 printk("\nDONE\n\n");
 }
@@ -2462,8 +2472,10 @@ int krping_doit(char *cmd)
 			KRPRINT_INIT("fast-reg test!\n");
 			break;
 		case 'F':
-			from_size = optint;
-			KRPRINT_INIT("from_size = %d to size\n", from_size);
+			//from_size = optint;
+			cb->from_size = optint;
+			//KRPRINT_INIT("from_size = %d to size\n", from_size);
+			KRPRINT_INIT("from_size = %d to size\n", cb->from_size);
 			break;
 		default:
 			KRPRINT_INIT(KERN_ERR PFX "unknown opt %s\n", optarg);
