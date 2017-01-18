@@ -609,8 +609,8 @@ static void krping_setup_wr(struct krping_cb *cb) // set up sgl, used for rdma
 	cb->reg_mr_wr.wr.opcode = IB_WR_REG_MR;     //(legacy:fastreg)
 	cb->reg_mr_wr.mr = cb->reg_mr;
 
-	cb->invalidate_wr.next = &cb->reg_mr_wr.wr;
-	cb->invalidate_wr.opcode = IB_WR_LOCAL_INV;
+//cb->invalidate_wr.next = &cb->reg_mr_wr.wr;
+//cb->invalidate_wr.opcode = IB_WR_LOCAL_INV;
 }
 
 static int krping_setup_buffers(struct krping_cb *cb) // init all buffers < 1.pd->cq->qp 2.[mr] 3.xxx >
@@ -838,13 +838,13 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	int ret;
 	struct scatterlist sg = {0};
 
-	cb->invalidate_wr.ex.invalidate_rkey = cb->reg_mr->rkey;
+//cb->invalidate_wr.ex.invalidate_rkey = cb->reg_mr->rkey; //redundant if i diable post_inv
 
 	/*
 	 * Update the reg key.
 	 */
-	ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
-	cb->reg_mr_wr.key = cb->reg_mr->rkey;
+//ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
+//cb->reg_mr_wr.key = cb->reg_mr->rkey;
 
 	/*
 	 * Update the reg WR with new buf info.
