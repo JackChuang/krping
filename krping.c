@@ -911,10 +911,12 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate); //Jack failed to trun inv off
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
-		info->size = htonl(cb->size);       // update
-		//info->size = htonl(cb->from_size);       // update //Jack
+		//info->size = htonl(cb->size);       // update
+		info->size = htonl(4096-1);       // update //Jack
+		//DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
+		//      (unsigned long long)buf, rkey, cb->size);
 		DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
-			  (unsigned long long)buf, rkey, cb->size);
+			  (unsigned long long)buf, rkey, 4096-1);
 	}
 }
 
@@ -1857,9 +1859,9 @@ while (cb->from_size <= cb->size){
 			printk(KERN_ERR PFX "krping_format_send failed\n");
 			break;
 		}
-	    DEBUG_LOG("updated &cb->send_buf.buf = 0x%p\n", &cb->send_buf.buf); //Jack123
-	    DEBUG_LOG("updated cb->send_buf.rkey = %d\n", cb->send_buf.rkey);
-	    DEBUG_LOG("updated cb->send_buf.size = %d\n", cb->send_buf.size);
+	    DEBUG_LOG("info about to pass to remote server &cb->send_buf.buf = 0x%p\n", &cb->send_buf.buf); //Jack123
+	    DEBUG_LOG("info about to pass to remote server cb->send_buf.rkey = %d\n", cb->send_buf.rkey);
+	    DEBUG_LOG("info about to pass to remote server cb->send_buf.size = %d\n", cb->send_buf.size); // this may indicate these 3 are not the one sent to remote server
         DEBUG_LOG("@@@ (check) cb->start_dma_addr = 0x%llx Jack (only client)\n", cb->start_dma_addr); 
 
 	    //DEBUG_LOG("\n\n\n"); msleep(3000);
