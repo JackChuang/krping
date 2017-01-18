@@ -855,8 +855,16 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
 	//sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     //cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic)
-	printk("got the size from remote %d\n", cb->remote_len);
-	sg_dma_len(&sg) = cb->remote_len;
+	
+    if(cb->server){
+        printk("got the size from remote %d\n", cb->remote_len);
+	    sg_dma_len(&sg) = cb->remote_len;
+    }
+    else {
+        printk("cb->from_size %d\n", cb->from_size);
+	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
+    
+    }
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
@@ -1152,7 +1160,7 @@ static void krping_test_server(struct krping_cb *cb)
         // cb->size *=2; <<<< new a size
 	}
 }
-
+/*
 static void rlat_test(struct krping_cb *cb)
 {
 	int scnt;
@@ -1231,7 +1239,8 @@ static void rlat_test(struct krping_cb *cb)
 		stop_tv.tv_usec - start_tv.tv_usec,
 		scnt, cb->size);
 }
-
+*/
+/*
 static void wlat_test(struct krping_cb *cb)
 {
 	int ccnt, scnt, rcnt;
@@ -1286,7 +1295,7 @@ static void wlat_test(struct krping_cb *cb)
 	do_gettimeofday(&start_tv);
 	while (scnt < iters || ccnt < iters || rcnt < iters) {
 
-		/* Wait till buffer changes. */
+		// Wait till buffer changes. //
 		if (rcnt < iters && !(scnt < 1 && !cb->server)) {
 			++rcnt;
 			while (*poll_buf != (char)rcnt) {
@@ -1375,7 +1384,8 @@ static void wlat_test(struct krping_cb *cb)
 	kfree(poll_cycles_stop);
 	kfree(last_poll_cycles_start);
 }
-
+*/
+/*
 static void bw_test(struct krping_cb *cb)
 {
 	int ccnt, scnt, rcnt;
@@ -1501,7 +1511,7 @@ static void bw_test(struct krping_cb *cb)
 	kfree(poll_cycles_stop);
 	kfree(last_poll_cycles_start);
 }
-
+*/
 
 
 /*
