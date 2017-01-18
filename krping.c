@@ -2504,8 +2504,10 @@ int krping_doit(char *cmd)
 	}
 
     //TODO: open and test
-    //cb->server_invalidate = 0;
-    //cb->read_inv = 0;
+    cb->server_invalidate = 0;
+    cb->read_inv = 0;
+	
+    KRPRINT_INIT("\n"); // print all info
     
     if ((cb->size < 1) ||
         (cb->size > RPING_BUFSIZE)) {
