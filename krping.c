@@ -906,7 +906,8 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 * sends have no data.
 	 */
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client!!!!
-		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate);
+		//rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate); //Jack testing
+		rkey = krping_rdma_rkey(cb, buf, cb->server_invalidate);
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
 		info->size = htonl(cb->size);       // update
@@ -972,7 +973,8 @@ static void krping_test_server(struct krping_cb *cb)
 		//cb->rdma_sq_wr.wr.sg_list->length = 4194304; // updated from remote (dynamic) // TODO testing
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
-		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf 
+		//cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf. Jack testing 
+		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, cb->read_inv); // Jack: payload or receiveing buf 
 		cb->rdma_sq_wr.wr.next = NULL;
 
 		/* Issue RDMA Read. */
