@@ -1037,9 +1037,10 @@ static void krping_test_server(struct krping_cb *cb)
         
         str_len = strlen(cb->rdma_buf);
         if(KRPING_EXP_DATA) {
-            //EXP_DATA("server strlen()=%d\n", str_len);
+            EXP_LOG("server strlen()=%d\n", str_len);
             if (str_len/1024)
                 EXP_DATA("server strlen()=%dK\n", str_len/1024);
+                EXP_LOG("server strlen()=%dK (/1000)\n", str_len/1000);
                 //////DEBUG_LOG("server strlen()=%.1lfK\n", (float)str_len/1024);
             //if (str_len/1024/1024)
                 //EXP_DATA("server strlen()=%dM\n", str_len/1024/1024);
@@ -1091,7 +1092,7 @@ static void krping_test_server(struct krping_cb *cb)
 		else 
 			cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, 0);
 			
-		DEBUG_LOG("rdma write from lkey %d laddr %llx len %d\n",
+		DEBUG_LOG("rdma write from remote by using lkey %d laddr %llx len %d\n",
 			  cb->rdma_sq_wr.wr.sg_list->lkey,
 			  (unsigned long long)cb->rdma_sq_wr.wr.sg_list->addr,
 			  cb->rdma_sq_wr.wr.sg_list->length);
@@ -1833,9 +1834,10 @@ while (cb->from_size <= cb->size){
         if(KRPING_EXP_DATA){
 	        msleep(3000); // give time to prepare the buffer
             int str_len = strlen(cb->start_buf);
-            //EXP_DATA("client strlen()=%d\n", str_len);
+            EXP_LOG("client strlen()=%d cb->from_size=%d\n", str_len, cb->from_size);
             if (str_len/1024)
-                EXP_DATA("client strlen()=%dK\n", str_len/1024);
+                EXP_DATA("client strlen()=%dK cb->from_size=%d\n", str_len/1024, cb->from_size/1024);
+                EXP_LOG("client strlen()=%dK cb->from_size=%d (/1000)\n", str_len/1000, cb->from_size/1000);
                 //////DEBUG_LOG("client strlen()=%.1lfK\n", (float)((float)str_len/(float)1024));
             //if (str_len/1024/1024)
                 //EXP_DATA("client strlen()=%dM\n", str_len/1024/1024);
