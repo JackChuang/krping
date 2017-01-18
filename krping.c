@@ -863,11 +863,11 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
     
     // Jack!!! support dynamically chage the R/W length
     if(cb->server){
-        printk("got the size from remote %d\n", cb->remote_len);
+        EXP_LOG("got the size from remote %d\n", cb->remote_len);
 	    sg_dma_len(&sg) = cb->remote_len;
     }
     else {
-        printk("cb->from_size %d\n", cb->from_size);
+        EXP_LOG("cb->from_size %d\n", cb->from_size);
 	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     
     }
