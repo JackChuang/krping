@@ -852,8 +852,8 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	else
 		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
-	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
-	sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
+	sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
+	//sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
@@ -1771,7 +1771,7 @@ static void krping_test_client(struct krping_cb *cb)
     
     //int exp_size = cb->size; // MAX
     //unsigned long exp_size = from_size; // MIN
-    cb->from_size = 4096; // MIN
+    //cb->from_size = 4096; // MIN
 
 	start = 65;
 	KRPRINT_INIT("cb->count=%d\n", cb->count);
