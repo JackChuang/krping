@@ -609,8 +609,8 @@ static void krping_setup_wr(struct krping_cb *cb) // set up sgl, used for rdma
 	cb->reg_mr_wr.wr.opcode = IB_WR_REG_MR;     //(legacy:fastreg)
 	cb->reg_mr_wr.mr = cb->reg_mr;
 
-//cb->invalidate_wr.next = &cb->reg_mr_wr.wr;
-//cb->invalidate_wr.opcode = IB_WR_LOCAL_INV;
+    cb->invalidate_wr.next = &cb->reg_mr_wr.wr;
+    cb->invalidate_wr.opcode = IB_WR_LOCAL_INV;
 }
 
 static int krping_setup_buffers(struct krping_cb *cb) // init all buffers < 1.pd->cq->qp 2.[mr] 3.xxx >
@@ -838,13 +838,14 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	int ret;
 	struct scatterlist sg = {0};
 
-//cb->invalidate_wr.ex.invalidate_rkey = cb->reg_mr->rkey; //redundant if i diable post_inv
+    cb->invalidate_wr.ex.invalidate_rkey = cb->reg_mr->rkey; //redundant if i diable post_inv
 
 	/*
 	 * Update the reg key.
 	 */
-//ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
-//cb->reg_mr_wr.key = cb->reg_mr->rkey;
+    //ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
+    ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
+    cb->reg_mr_wr.key = cb->reg_mr->rkey;
 
 	/*
 	 * Update the reg WR with new buf info.
@@ -906,8 +907,7 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 * sends have no data.
 	 */
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client!!!!
-		//rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate); //Jack testing
-		rkey = krping_rdma_rkey(cb, buf, cb->server_invalidate);
+		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate); //Jack failed to trun inv off
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
 		info->size = htonl(cb->size);       // update
@@ -973,8 +973,7 @@ static void krping_test_server(struct krping_cb *cb)
 		//cb->rdma_sq_wr.wr.sg_list->length = 4194304; // updated from remote (dynamic) // TODO testing
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
-		//cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf. Jack testing 
-		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, cb->read_inv); // Jack: payload or receiveing buf 
+		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf //Jack failed to trun inv of 
 		cb->rdma_sq_wr.wr.next = NULL;
 
 		/* Issue RDMA Read. */
