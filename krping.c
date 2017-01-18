@@ -857,11 +857,8 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
 	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
 	//sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
-    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
-printk("hardcoded size %d\n",  sg_dma_len(&sg));
     //sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
-
-    /*
+    
     if(cb->server){
         printk("got the size from remote %d\n", cb->remote_len);
 	    sg_dma_len(&sg) = cb->remote_len;
@@ -871,7 +868,8 @@ printk("hardcoded size %d\n",  sg_dma_len(&sg));
 	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     
     }
-    */
+printk("hardcoded size %d\n",  sg_dma_len(&sg));
+    
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
@@ -1170,7 +1168,8 @@ static void krping_test_server(struct krping_cb *cb)
         
         
         //Jack: experiment TODO: new a size
-        // cb->size *=2; <<<< new a size
+        // cb->size *=2; <<<< new a size // passive got the size
+		DEBUG_LOG("\n\n\n\n\n\n\n");
 	}
 }
 /*
@@ -1941,6 +1940,7 @@ while (cb->from_size <= cb->size){
 #endif
     }
 	
+    EXP_DATA("\n\n\n"); 
     EXP_DATA("===========================================================\n"); 
     EXP_DATA("===========================================================\n"); 
     EXP_DATA("===========================================================\n"); 
