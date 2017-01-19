@@ -1687,6 +1687,8 @@ static void fill_sockaddr(struct sockaddr_storage *sin, struct krping_cb *cb)
 {
 	memset(sin, 0, sizeof(*sin));
 
+    printk("Jack cb->addr %s cb->port %d\n", cb->addr, cb->port);
+
 	if (cb->addr_type == AF_INET) {
 		struct sockaddr_in *sin4 = (struct sockaddr_in *)sin;
 		sin4->sin_family = AF_INET;
@@ -1709,6 +1711,7 @@ static int krping_bind_server(struct krping_cb *cb)
 	fill_sockaddr(&sin, cb);
 
 	DEBUG_LOG("rdma_bind_addr\n");
+printk("Jack cb->addr_str %s cb->addr %s\n", cb->addr_str, cb->addr);
 	ret = rdma_bind_addr(cb->cm_id, (struct sockaddr *)&sin);
 	if (ret) {
 		printk(KERN_ERR PFX "rdma_bind_addr error %d\n", ret);
