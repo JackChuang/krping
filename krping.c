@@ -88,14 +88,14 @@
 #define PFX "krping: "
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, 1);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 
 
 
 
-#define KRPING_EXP_LOG  0
-#define KRPING_EXP_DATA 1
+#define KRPING_EXP_LOG  1
+#define KRPING_EXP_DATA 0
 
 // for making sure data is good (not gaurantee it doesn't affect data)
 #define EXP_LOG if(KRPING_EXP_LOG) printk
@@ -613,6 +613,17 @@ static void krping_setup_wr(struct krping_cb *cb) // set up sgl, used for rdma
 
     cb->invalidate_wr.next = &cb->reg_mr_wr.wr;
     cb->invalidate_wr.opcode = IB_WR_LOCAL_INV;
+    /*  The reg mem_mode uses a reg mr on the client side for the
+     *   start_buf and rdma_buf buffers.  Each time the client will advertise
+     *   one of these buffers, it invalidates the previous registration and fast 
+     *   registers the new buffer with a new key.   
+     *   
+     *   If the server_invalidate
+     *   option is on, then the server will do the invalidation via the "go ahead"
+     *   messages using the IB_WR_SEND_WITH_INV opcode.   Otherwise the client
+     *   invalidates the mr using the IB_WR_LOCAL_INV work request. 
+     *
+     */
 }
 
 static int krping_setup_buffers(struct krping_cb *cb) // init all buffers < 1.pd->cq->qp 2.[mr] 3.xxx >
@@ -846,9 +857,12 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	 * Update the reg key.
 	 */
     //ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
-    ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
-    cb->reg_mr_wr.key = cb->reg_mr->rkey;
-
+    static bool first=false;
+    if(!first){
+        ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
+        cb->reg_mr_wr.key = cb->reg_mr->rkey;
+        first=true;
+    }
 	/*
 	 * Update the reg WR with new buf info.
 	 */
@@ -861,21 +875,29 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	//sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
     //sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
     
-    // Jack!!! support dynamically chage the R/W length
+    // Jack!!! support dynamically chage the R/W lengt!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!h
     if(cb->server){
         EXP_LOG("got the size from remote %d\n", cb->remote_len);
 	    sg_dma_len(&sg) = cb->remote_len;
     }
     else {
         EXP_LOG("cb->from_size %d\n", cb->from_size);
-	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!!
-    
+	    sg_dma_len(&sg) = cb->from_size; //TODO Jack does this dynamic change the send size !!!!!! 
     }
+
     EXP_LOG("hardcoded size %d\n",  sg_dma_len(&sg));
 
 	//ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, NULL, PAGE_SIZE);
 	ret = ib_map_mr_sg(cb->reg_mr, &sg, 1, PAGE_SIZE);  // snyc ib_dma_sync_single_for_cpu/dev
 	BUG_ON(ret <= 0 || ret > cb->page_list_len);
+    /*
+     * Map the largest prefix of a dma mapped SG list
+     *     and set it the memory region.
+     * @mr:            memory region
+     * @sg:            dma mapped scatterlist
+     * @sg_nents:      number of entries in sg
+     * @page_size:     page vector desired page size
+     * */
 
 	DEBUG_LOG(PFX "post_inv = %d, reg_mr new rkey %d pgsz %u len %u"
 		" iova_start %llx\n",
@@ -885,9 +907,10 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		cb->reg_mr->length,
 		cb->reg_mr->iova);
 
-	DEBUG_LOG("ib_post_send>>>>\n");
+	DEBUG_LOG("%s(): ib_post_send>>>> post_inv %d\n", __func__, post_inv);
 	if (post_inv)
 		ret = ib_post_send(cb->qp, &cb->invalidate_wr, &bad_wr);
+        //ret = 0;
 	else
 		ret = ib_post_send(cb->qp, &cb->reg_mr_wr.wr, &bad_wr);
 	if (ret) {
@@ -908,13 +931,13 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 * advertising the rdma buffer.  Server side
 	 * sends have no data.
 	 */
-	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client!!!!
+	if (!cb->server || cb->wlat || cb->rlat || cb->bw) { // only client!!!! for client convinent, otherwise krping_rdma_rkey is almost enough
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate); //Jack failed to trun inv off
 		info->buf = htonll(buf);            // update. hton: host to net order
 		info->rkey = htonl(rkey);           // update
-		//info->size = htonl(cb->size);       // update
+		//info->size = htonl(cb->size);     // update
 		//info->size = htonl(4096-1);       // update //Jack
-		info->size = htonl(cb->from_size);       // update //Jack
+		info->size = htonl(cb->from_size);  // update //Jack // dynamic size!!!!!!!!!!!
 		//DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
 		//      (unsigned long long)buf, rkey, cb->size);
 		DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
@@ -971,14 +994,14 @@ static void krping_test_server(struct krping_cb *cb)
 //>>    // time1 : compose msg info
         rdtscll(ts_start);
 		
-        cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
-		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
-	    cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic) //TODO tsting
+        cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote!!!!
+		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote!!!!
+	    cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote!!!! (dynamic) //TODO tsting
 		//cb->rdma_sq_wr.wr.sg_list->length = 4096; // updated from remote (dynamic) // TODO testing
 		//cb->rdma_sq_wr.wr.sg_list->length = 4194304; // updated from remote (dynamic) // TODO testing
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
-		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf //Jack failed to trun inv of 
+		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf //Jack failed to trun inv off 
 		cb->rdma_sq_wr.wr.next = NULL;
 
 		/* Issue RDMA Read. */
@@ -991,11 +1014,11 @@ static void krping_test_server(struct krping_cb *cb)
 			 * Immediately follow the read with a 
 			 * fenced LOCAL_INV.
 			 */
-			cb->rdma_sq_wr.wr.next = &inv;
-			memset(&inv, 0, sizeof inv);
-			inv.opcode = IB_WR_LOCAL_INV;
-			inv.ex.invalidate_rkey = cb->reg_mr->rkey;
-			inv.send_flags = IB_SEND_FENCE;
+            cb->rdma_sq_wr.wr.next = &inv;
+            memset(&inv, 0, sizeof inv);
+            inv.opcode = IB_WR_LOCAL_INV;
+            inv.ex.invalidate_rkey = cb->reg_mr->rkey;
+            inv.send_flags = IB_SEND_FENCE;
 		}
 
         if(!KRPING_EXP_DATA && cb->verbose)
@@ -1052,7 +1075,6 @@ static void krping_test_server(struct krping_cb *cb)
                 //EXP_DATA("server strlen()=%dM\n", str_len/1024/1024);
                 //////DEBUG_LOG("server strlen()=%.1lfM\n", (float)str_len/1024/1024);
             //EXP_DATA("\n");
-            
         }
         */
 
@@ -1813,6 +1835,7 @@ while (cb->from_size <= cb->size){
     for (ping = 0; !cb->count || ping < cb->count; ping++) {
 		cb->state = RDMA_READ_ADV; // !!!!!!!!!!!
         
+        /* 0. client prepares compose send buffer */
         //if (exp_size > cb->size) // Jack terminates it
         if (cb->from_size > cb->size) // Jack terminates it
             break; //
@@ -1834,16 +1857,14 @@ while (cb->from_size <= cb->size){
 		//cb->start_buf[cb->size - 1] = 0; // Jack need to change
 		//cb->start_buf[exp_size - 1] = 0;
 		cb->start_buf[cb->from_size - 1] = 0;
-       
 
         // since this start_dma_addr = dma_map_single(cb->start_buf); 
         // set up  start_buf 
         // send start_dma_addr to remote
-
 	  
         DEBUG_LOG("\n"); // since the upper %s is too long to be printed (got truncated so w/o \n) if no sleep
         if(KRPING_EXP_DATA){
-	        msleep(3000); // give time to prepare the buffer
+	        msleep(1000); // give time to prepare the buffer
             int str_len = strlen(cb->start_buf);
             EXP_LOG("client strlen()=%d cb->from_size=%d\n", str_len, cb->from_size);
             EXP_DATA("client strlen()=%d cb->from_size=%d\n", str_len, cb->from_size);
@@ -1857,6 +1878,8 @@ while (cb->from_size <= cb->size){
             EXP_DATA("\n");
         }
 
+        /* 1. client sends source rkey/addr/len */
+        
         //DEBUG_LOG("%s(): cb->start_dma_addr = 0x%d then upsate rkey\n", cb->start_dma_addr);
         //if (&cb->start_dma_addr!=NULL)
         //    DEBUG_LOG("%s(): cb->start_dma_addr = 0x%llx then upsate rkey\n", cb->start_dma_addr);
@@ -1906,9 +1929,12 @@ while (cb->from_size <= cb->size){
 			       cb->state);
 			break;  // break
 		}
-
         DEBUG_LOG("\n\n\n"); 
         //msleep(5000);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /* 2. client sends sink rkey/addr/len -> // send key for remote writing */
 		krping_format_send(cb, cb->rdma_dma_addr);
 	    DEBUG_LOG("ib_post_send>>>>\n");
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
@@ -1926,7 +1952,8 @@ while (cb->from_size <= cb->size){
 			       cb->state);
 			break;
 		}
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+        /* 3. done. check the recv size */
 		if (cb->validate)
 			//if (memcmp(cb->start_buf, cb->rdma_buf, cb->size)) { // Jack: need to change
 			//if (memcmp(cb->start_buf, cb->rdma_buf, exp_size)) {
@@ -2452,7 +2479,7 @@ int krping_doit(char *cmd)
 			break;
 		case 'S':
 			cb->size = optint;
-			KRPRINT_INIT("from_size to size = %d\n", cb->size);
+			KRPRINT_INIT("from_size to size = %d\n", cb->size); // from_size (dynamically changed) cb->size (target size) for RDMA
 			break;
 		case 'C':
 			cb->count = optint;
@@ -2523,7 +2550,7 @@ int krping_doit(char *cmd)
 
     //TODO: open and test
     cb->server_invalidate = 0;
-    cb->read_inv = 0;
+    cb->read_inv = 0; // let remote(client) help
 	
     KRPRINT_INIT("\n"); // print all info
     
