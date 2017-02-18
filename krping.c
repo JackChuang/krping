@@ -856,10 +856,10 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	/*
 	 * Update the reg key.
 	 */
-    //ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
+    ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
     //static bool first=false;
     //if(!first){
-        ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
+        //ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
         cb->reg_mr_wr.key = cb->reg_mr->rkey;
     //    first=true;
     //}
@@ -2567,7 +2567,7 @@ int krping_doit(char *cmd)
 
     //TODO: open and test
     cb->server_invalidate = 0;
-    cb->read_inv = 0; // let remote(client) help
+    cb->read_inv = 1; // let remote(client) help
 	
     KRPRINT_INIT("\n"); // print all info
     
