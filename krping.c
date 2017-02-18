@@ -907,11 +907,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		cb->reg_mr->length,
 		cb->reg_mr->iova);
 
-<<<<<<< HEAD
     DEBUG_LOG("%s(): ib_post_send>>>> post_inv %d\n", __func__, post_inv); 
-=======
-	DEBUG_LOG("%s(): ib_post_send>>>> post_inv %d\n", __func__, post_inv);
->>>>>>> 3ba0645802d1f1bc0adbe0e6d3e5743872f153af
 	if (post_inv)
 		ret = ib_post_send(cb->qp, &cb->invalidate_wr, &bad_wr);
         //ret = 0;
