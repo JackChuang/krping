@@ -88,14 +88,14 @@
 #define PFX "krping: "
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, 1);
 MODULE_PARM_DESC(debug, "Debug level (0=none, 1=all)");
 
 
 
 
-#define KRPING_EXP_LOG  0
-#define KRPING_EXP_DATA 1
+#define KRPING_EXP_LOG  1
+#define KRPING_EXP_DATA 0
 
 // for making sure data is good (not gaurantee it doesn't affect data)
 #define EXP_LOG if(KRPING_EXP_LOG) printk
@@ -846,16 +846,19 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	 * Update the reg key.
 	 */
     //ib_update_fast_reg_key(cb->reg_mr, ++cb->key);
-    ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
-    cb->reg_mr_wr.key = cb->reg_mr->rkey;
-
+    static bool first=false;                                                                                                                                 
+    if(!first){
+        ib_update_fast_reg_key(cb->reg_mr, cb->key); // Jack testing 
+        cb->reg_mr_wr.key = cb->reg_mr->rkey;
+        first=true;
+    }
 	/*
 	 * Update the reg WR with new buf info.
 	 */
 	if (buf == (u64)cb->start_dma_addr)
-		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_READ;
+		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_READ; // start for R_READ
 	else
-		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
+		cb->reg_mr_wr.access = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE; // rdma for R_WRITE
 	sg_dma_address(&sg) = buf;      // rdma_buf = rdma_buf 
 	//sg_dma_len(&sg) = cb->size; //TODO Jack does this dynamic change the send size !!!!!!
 	//sg_dma_len(&sg) = 4096-1; //TODO Jack does this dynamic change the send size !!!!!printk("hardcoded size %d\n",  cb->siz);
@@ -885,9 +888,10 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		cb->reg_mr->length,
 		cb->reg_mr->iova);
 
-	DEBUG_LOG("ib_post_send>>>>\n");
+    DEBUG_LOG("%s(): ib_post_send>>>> post_inv %d\n", __func__, post_inv); 
 	if (post_inv)
 		ret = ib_post_send(cb->qp, &cb->invalidate_wr, &bad_wr);
+        //ret = 0;
 	else
 		ret = ib_post_send(cb->qp, &cb->reg_mr_wr.wr, &bad_wr);
 	if (ret) {
@@ -898,6 +902,8 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 	return rkey;
 }
 
+//
+// compose a RDMA W/R ACK
 static void krping_format_send(struct krping_cb *cb, u64 buf)
 {
 	struct krping_rdma_info *info = &cb->send_buf; // update send_buf
@@ -915,10 +921,10 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 		//info->size = htonl(cb->size);       // update
 		//info->size = htonl(4096-1);       // update //Jack
 		info->size = htonl(cb->from_size);       // update //Jack
-		//DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
-		//      (unsigned long long)buf, rkey, cb->size);
 		DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
-			  (unsigned long long)buf, rkey, 4096-1);
+		      (unsigned long long)buf, rkey, cb->from_size);
+		//DEBUG_LOG("RDMA addr %llx rkey %d len %d\n",
+		//	  (unsigned long long)buf, rkey, 4096-1);
 	}
 }
 
@@ -971,31 +977,30 @@ static void krping_test_server(struct krping_cb *cb)
 //>>    // time1 : compose msg info
         rdtscll(ts_start);
 		
-        cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote
-		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote
-	    cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic) //TODO tsting
-		//cb->rdma_sq_wr.wr.sg_list->length = 4096; // updated from remote (dynamic) // TODO testing
-		//cb->rdma_sq_wr.wr.sg_list->length = 4194304; // updated from remote (dynamic) // TODO testing
+        cb->rdma_sq_wr.rkey = cb->remote_rkey;              // updated from remote in INT RECV
+		cb->rdma_sq_wr.remote_addr = cb->remote_addr;       // updated from remote in INT RECV
+	    cb->rdma_sq_wr.wr.sg_list->length = cb->remote_len; // updated from remote (dynamic) in INT RECV
+		//cb->rdma_sq_wr.wr.sg_list->length = 4096; // updated from remote (dynamic)
+		//cb->rdma_sq_wr.wr.sg_list->length = 4194304; // updated from remote (dynamic)
         //EXP_DATA("----- exp_size=%d (got from remote)-----\n", cb->remote_len); // this=MAX (4194304)
 
-		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf //Jack failed to trun inv of 
+		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, !cb->read_inv); // Jack: payload or receiveing buf //Jack failed to trun inv of  // server READ from remote start_dma_addr to local buf and writing the data (inlocal buf) to another remote rdma_dma_addr
 		cb->rdma_sq_wr.wr.next = NULL;
 
 		/* Issue RDMA Read. */
 		if (cb->read_inv)
 			cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_READ_WITH_INV;
 		else {
-
 			cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_READ;
 			/*  
 			 * Immediately follow the read with a 
 			 * fenced LOCAL_INV.
 			 */
-			cb->rdma_sq_wr.wr.next = &inv;
-			memset(&inv, 0, sizeof inv);
-			inv.opcode = IB_WR_LOCAL_INV;
-			inv.ex.invalidate_rkey = cb->reg_mr->rkey;
-			inv.send_flags = IB_SEND_FENCE;
+            cb->rdma_sq_wr.wr.next = &inv;
+            memset(&inv, 0, sizeof inv);
+            inv.opcode = IB_WR_LOCAL_INV;
+            inv.ex.invalidate_rkey = cb->reg_mr->rkey;
+            inv.send_flags = IB_SEND_FENCE;
 		}
 
         if(!KRPING_EXP_DATA && cb->verbose)
@@ -1092,6 +1097,7 @@ static void krping_test_server(struct krping_cb *cb)
 		cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;  //WRITE
 		cb->rdma_sq_wr.rkey = cb->remote_rkey;
 		cb->rdma_sq_wr.remote_addr = cb->remote_addr;
+        // data has already in cb->rdma_buf
 		cb->rdma_sq_wr.wr.sg_list->length = strlen(cb->rdma_buf) + 1;
 		if (cb->local_dma_lkey)
 			cb->rdma_sgl.lkey = cb->qp->device->local_dma_lkey;
@@ -1118,7 +1124,7 @@ static void krping_test_server(struct krping_cb *cb)
 		/* Wait for completion */
 		ret = wait_event_interruptible(cb->sem, cb->state >= 
 							 RDMA_WRITE_COMPLETE);
-        // time 4: read(task) done
+        // time 4: write(task) done
         rdtscll(ts_wr_end);
 		
         if (cb->state != RDMA_WRITE_COMPLETE) {
@@ -1876,7 +1882,6 @@ while (cb->from_size <= cb->size){
 	    //DEBUG_LOG("\n\n\n"); msleep(3000);
 	    DEBUG_LOG("2. ib_post_send>>>>\n");
     
-       
         /** When using kernel space verbs, before and after RDMA operations it is recommended to call ib_dma_sync*(OFED API) on buffers because of CPU cache. **/
             /*
             struct scatterlist sg = {0};
@@ -1895,6 +1900,9 @@ while (cb->from_size <= cb->size){
 			break;
 		}
        
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////// passive READ don //////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////////////
 	    DEBUG_LOG("blocking wait......\n");
         //msleep(3000);
 	    DEBUG_LOG("\n\n\n");
@@ -1906,7 +1914,10 @@ while (cb->from_size <= cb->size){
 			       cb->state);
 			break;  // break
 		}
-
+        
+        ///////////////////////////////////// WRITE ACK ///////////////////////////////////////////////
+        ///////////////////////////////////// WRITE ACK ///////////////////////////////////////////////
+        ///////////////////////////////////// WRITE ACK ///////////////////////////////////////////////
         DEBUG_LOG("\n\n\n"); 
         //msleep(5000);
 		krping_format_send(cb, cb->rdma_dma_addr);
